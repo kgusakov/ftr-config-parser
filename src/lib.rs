@@ -23,6 +23,21 @@ pub struct Config<'a> {
 
 pub struct XPath<'a>(pub &'a str);
 pub struct IdOrClass<'a>(pub &'a str);
+
+impl<'a> TryFrom<&'a str> for IdOrClass<'a> {
+    type Error = error::Error;
+
+    fn try_from(s: &'a str) -> Result<Self, Self::Error> {
+        if s.is_empty() {
+            return Err(error::Error::InvalidIdOrClass(s.to_string()));
+        }
+        if s.chars().any(|c| c.is_ascii_whitespace()) {
+            return Err(error::Error::InvalidIdOrClass(s.to_string()));
+        }
+        Ok(IdOrClass(s))
+    }
+}
+
 pub struct ImageSrcFragment<'a>(pub &'a str);
 
 pub enum YesNo {
@@ -121,7 +136,7 @@ pub fn parse_config<'a>(input: &'a str) -> Result<Config<'a>, error::Error> {
             "date" => date.push(XPath(value)),
             "author" => author.push(XPath(value)),
             "strip" => strip.push(XPath(value)),
-            "strip_id_or_class" => strip_id_or_class.push(IdOrClass(value)),
+            "strip_id_or_class" => strip_id_or_class.push(IdOrClass::try_from(value)?),
             "strip_image_src" => strip_image_src.push(ImageSrcFragment(value)),
             "prune" => prune = value.parse::<YesNo>()?.into(),
             "tidy" => tidy = value.parse::<YesNo>()?.into(),
@@ -307,5 +322,43 @@ mod tests {
     fn invalid_yes_no_returns_error() {
         let result = parse_config("prune: maybe\n");
         assert!(matches!(result, Err(error::Error::InvalidBoolValue(_))));
+    }
+
+    #[test]
+    fn id_or_class_valid() {
+        assert!(IdOrClass::try_from("sidebar").is_ok());
+        assert!(IdOrClass::try_from("main-content").is_ok());
+        assert!(IdOrClass::try_from("_private").is_ok());
+        assert!(IdOrClass::try_from("item123").is_ok());
+    }
+
+    #[test]
+    fn id_or_class_rejects_empty() {
+        assert!(matches!(
+            IdOrClass::try_from(""),
+            Err(error::Error::InvalidIdOrClass(_))
+        ));
+    }
+
+    #[test]
+    fn id_or_class_rejects_whitespace() {
+        assert!(matches!(
+            IdOrClass::try_from("foo bar"),
+            Err(error::Error::InvalidIdOrClass(_))
+        ));
+        assert!(matches!(
+            IdOrClass::try_from("foo\tbar"),
+            Err(error::Error::InvalidIdOrClass(_))
+        ));
+        assert!(matches!(
+            IdOrClass::try_from(" leading"),
+            Err(error::Error::InvalidIdOrClass(_))
+        ));
+    }
+
+    #[test]
+    fn parse_config_rejects_invalid_id_or_class() {
+        let result = parse_config("strip_id_or_class: foo bar\n");
+        assert!(matches!(result, Err(error::Error::InvalidIdOrClass(_))));
     }
 }

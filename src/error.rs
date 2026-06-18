@@ -7,4 +7,7 @@ pub enum Error {
 
     #[error("invalid yes/no value: {0}")]
     InvalidBoolValue(String),
+
+    #[error("invalid HTML id/class value: {0}")]
+    InvalidIdOrClass(String),
 }
