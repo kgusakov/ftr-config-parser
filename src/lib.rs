@@ -76,7 +76,76 @@ fn parse_line(line: &str) -> Result<(&str, Option<&str>, &str), error::Error> {
 }
 
 pub fn parse_config<'a>(input: &'a str) -> Result<Config<'a>, error::Error> {
-    todo!()
+    let mut title = Vec::new();
+    let mut body = Vec::new();
+    let mut date = Vec::new();
+    let mut author = Vec::new();
+    let mut strip = Vec::new();
+    let mut strip_id_or_class = Vec::new();
+    let mut strip_image_src = Vec::new();
+    let mut prune = true;
+    let mut tidy = false;
+    let mut autodetect_on_failure = YesNo::Yes;
+    let mut single_page_link = None;
+    let mut single_page_link_in_feed = None;
+    let mut next_page_link = None;
+    let mut replace_string = Vec::new();
+    let mut http_header = Vec::new();
+    let mut test_url = Vec::new();
+
+    for line in input.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+
+        let (name, param, value) = parse_line(line)?;
+
+        match name {
+            "title" => title.push(XPath(value)),
+            "body" => body.push(XPath(value)),
+            "date" => date.push(XPath(value)),
+            "author" => author.push(XPath(value)),
+            "strip" => strip.push(XPath(value)),
+            "strip_id_or_class" => strip_id_or_class.push(IdOrClass(value)),
+            "strip_image_src" => strip_image_src.push(ImageSrcFragment(value)),
+            "prune" => prune = parse_yes_no(value)?,
+            "tidy" => tidy = parse_yes_no(value)?,
+            "autodetect_on_failure" => autodetect_on_failure = YesNo::from(parse_yes_no(value)?),
+            "single_page_link" => single_page_link = Some(XPath(value)),
+            "single_page_link_in_feed" => single_page_link_in_feed = Some(XPath(value)),
+            "next_page_link" => next_page_link = Some(XPath(value)),
+            "replace_string" => replace_string.push(ReplaceString {
+                find: param.unwrap_or(""),
+                replace: value,
+            }),
+            "http_header" => http_header.push(HttpHeader {
+                name: param.unwrap_or(""),
+                value,
+            }),
+            "test_url" => test_url.push(TestUrl(value)),
+            _ => {}
+        }
+    }
+
+    Ok(Config {
+        title,
+        body,
+        date,
+        author,
+        strip,
+        strip_id_or_class,
+        strip_image_src,
+        prune,
+        tidy,
+        autodetect_on_failure,
+        single_page_link,
+        single_page_link_in_feed,
+        next_page_link,
+        replace_string,
+        http_header,
+        test_url,
+    })
 }
 
 #[cfg(test)]
@@ -137,5 +206,90 @@ mod tests {
             parse_line("badline"),
             Err(error::Error::MalformedLine(_))
         ));
+    }
+
+    #[test]
+    fn empty_input_returns_defaults() {
+        let config = parse_config("").unwrap();
+        assert!(config.title.is_empty());
+        assert!(config.body.is_empty());
+        assert_eq!(config.prune, true);
+        assert_eq!(config.tidy, false);
+        assert!(matches!(config.autodetect_on_failure, YesNo::Yes));
+        assert!(config.single_page_link.is_none());
+    }
+
+    #[test]
+    fn comments_and_blank_lines_ignored() {
+        let config = parse_config("# this is a comment\n\n# another comment\n").unwrap();
+        assert!(config.title.is_empty());
+    }
+
+    #[test]
+    fn wikipedia_example() {
+        let input = "body: //div[@id='content']\nstrip_id_or_class: editsection\nstrip_id_or_class: toc\nprune: no\n";
+        let config = parse_config(input).unwrap();
+        assert_eq!(config.body.len(), 1);
+        assert_eq!(config.body[0].0, "//div[@id='content']");
+        assert_eq!(config.strip_id_or_class.len(), 2);
+        assert_eq!(config.strip_id_or_class[0].0, "editsection");
+        assert_eq!(config.strip_id_or_class[1].0, "toc");
+        assert_eq!(config.prune, false);
+    }
+
+    #[test]
+    fn multiple_vec_fields_accumulated() {
+        let input = "title: //h1\ntitle: //h2\nbody: //article\nbody: //main\n";
+        let config = parse_config(input).unwrap();
+        assert_eq!(config.title.len(), 2);
+        assert_eq!(config.title[0].0, "//h1");
+        assert_eq!(config.title[1].0, "//h2");
+        assert_eq!(config.body.len(), 2);
+    }
+
+    #[test]
+    fn http_header_parsed() {
+        let input = "http_header(Cookie): euConsent=true\nhttp_header(User-agent): Mozilla/5.0\n";
+        let config = parse_config(input).unwrap();
+        assert_eq!(config.http_header.len(), 2);
+        assert_eq!(config.http_header[0].name, "Cookie");
+        assert_eq!(config.http_header[0].value, "euConsent=true");
+        assert_eq!(config.http_header[1].name, "User-agent");
+    }
+
+    #[test]
+    fn replace_string_parsed() {
+        let input = "replace_string(foo): bar\n";
+        let config = parse_config(input).unwrap();
+        assert_eq!(config.replace_string.len(), 1);
+        assert_eq!(config.replace_string[0].find, "foo");
+        assert_eq!(config.replace_string[0].replace, "bar");
+    }
+
+    #[test]
+    fn single_page_link_last_wins() {
+        let input = "single_page_link: //a[@class='first']\nsingle_page_link: //a[@class='second']\n";
+        let config = parse_config(input).unwrap();
+        assert_eq!(config.single_page_link.unwrap().0, "//a[@class='second']");
+    }
+
+    #[test]
+    fn test_url_accumulated() {
+        let input = "test_url: https://example.com/a\ntest_url: https://example.com/b\n";
+        let config = parse_config(input).unwrap();
+        assert_eq!(config.test_url.len(), 2);
+        assert_eq!(config.test_url[0].0, "https://example.com/a");
+    }
+
+    #[test]
+    fn unknown_keys_silently_skipped() {
+        let config = parse_config("unknown_directive: some value\n").unwrap();
+        assert!(config.title.is_empty());
+    }
+
+    #[test]
+    fn invalid_yes_no_returns_error() {
+        let result = parse_config("prune: maybe\n");
+        assert!(matches!(result, Err(error::Error::InvalidBoolValue(_))));
     }
 }
