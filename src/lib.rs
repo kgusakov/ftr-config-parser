@@ -1,5 +1,4 @@
 mod error;
-mod types;
 
 pub struct Config<'a> {
     pub title: Vec<XPath<'a>>,
