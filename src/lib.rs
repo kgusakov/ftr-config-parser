@@ -58,6 +58,23 @@ fn parse_yes_no(value: &str) -> Result<bool, error::Error> {
     }
 }
 
+fn parse_line(line: &str) -> Result<(&str, Option<&str>, &str), error::Error> {
+    let colon = line
+        .find(':')
+        .ok_or_else(|| error::Error::MalformedLine(line.to_string()))?;
+    let key_part = line[..colon].trim();
+    let value = line[colon + 1..].trim();
+
+    if let Some(open) = key_part.find('(') {
+        let close = key_part.find(')').unwrap_or(key_part.len());
+        let name = key_part[..open].trim();
+        let param = key_part[open + 1..close].trim();
+        Ok((name, Some(param), value))
+    } else {
+        Ok((key_part, None, value))
+    }
+}
+
 pub fn parse_config<'a>(input: &'a str) -> Result<Config<'a>, error::Error> {
     todo!()
 }
@@ -87,6 +104,38 @@ mod tests {
         assert!(matches!(
             parse_yes_no("maybe"),
             Err(error::Error::InvalidBoolValue(_))
+        ));
+    }
+
+    #[test]
+    fn parse_line_simple_key() {
+        let (name, param, value) = parse_line("body: //div[@id='content']").unwrap();
+        assert_eq!(name, "body");
+        assert_eq!(param, None);
+        assert_eq!(value, "//div[@id='content']");
+    }
+
+    #[test]
+    fn parse_line_parametric_key() {
+        let (name, param, value) = parse_line("http_header(Cookie): euConsent=true").unwrap();
+        assert_eq!(name, "http_header");
+        assert_eq!(param, Some("Cookie"));
+        assert_eq!(value, "euConsent=true");
+    }
+
+    #[test]
+    fn parse_line_value_with_colon() {
+        let (name, param, value) = parse_line("http_header(User-agent): Mozilla/5.0 (iPad; CPU OS 12_0_1)").unwrap();
+        assert_eq!(name, "http_header");
+        assert_eq!(param, Some("User-agent"));
+        assert_eq!(value, "Mozilla/5.0 (iPad; CPU OS 12_0_1)");
+    }
+
+    #[test]
+    fn parse_line_no_colon_returns_error() {
+        assert!(matches!(
+            parse_line("badline"),
+            Err(error::Error::MalformedLine(_))
         ));
     }
 }
