@@ -2,6 +2,8 @@ use std::str::FromStr;
 
 mod error;
 
+pub use error::{Error, ErrorKind};
+
 pub struct Config<'a> {
     pub title: Vec<XPath<'a>>,
     pub body: Vec<XPath<'a>>,
@@ -24,15 +26,15 @@ pub struct Config<'a> {
 pub struct XPath<'a>(pub &'a str);
 
 impl<'a> TryFrom<&'a str> for XPath<'a> {
-    type Error = error::Error;
+    type Error = error::ErrorKind;
 
     fn try_from(s: &'a str) -> Result<Self, Self::Error> {
         if s.is_empty() {
-            return Err(error::Error::EmptyXPath);
+            return Err(error::ErrorKind::EmptyXPath);
         }
         sxd_xpath::Factory::new()
             .build(s)
-            .map_err(|e| error::Error::InvalidXPath { expr: s.to_string(), source: e })?;
+            .map_err(|e| error::ErrorKind::InvalidXPath { expr: s.to_string(), source: e })?;
         Ok(XPath(s))
     }
 }
@@ -40,14 +42,14 @@ impl<'a> TryFrom<&'a str> for XPath<'a> {
 pub struct IdOrClass<'a>(pub &'a str);
 
 impl<'a> TryFrom<&'a str> for IdOrClass<'a> {
-    type Error = error::Error;
+    type Error = error::ErrorKind;
 
     fn try_from(s: &'a str) -> Result<Self, Self::Error> {
         if s.is_empty() {
-            return Err(error::Error::InvalidIdOrClass(s.to_string()));
+            return Err(error::ErrorKind::InvalidIdOrClass(s.to_string()));
         }
         if s.chars().any(|c| c.is_ascii_whitespace()) {
-            return Err(error::Error::InvalidIdOrClass(s.to_string()));
+            return Err(error::ErrorKind::InvalidIdOrClass(s.to_string()));
         }
         Ok(IdOrClass(s))
     }
@@ -79,13 +81,13 @@ impl From<YesNo> for bool {
 }
 
 impl FromStr for YesNo {
-    type Err = error::Error;
+    type Err = error::ErrorKind;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "yes" => Ok(YesNo::Yes),
             "no" => Ok(YesNo::No),
-            other => Err(error::Error::InvalidBoolValue(other.to_string())),
+            other => Err(error::ErrorKind::InvalidBoolValue(other.to_string())),
         }
     }
 }
@@ -102,10 +104,10 @@ pub struct HttpHeader<'a> {
 
 pub struct TestUrl<'a>(pub &'a str);
 
-fn parse_line(line: &str) -> Result<(&str, Option<&str>, &str), error::Error> {
+fn parse_line(line: &str) -> Result<(&str, Option<&str>, &str), error::ErrorKind> {
     let colon = line
         .find(':')
-        .ok_or_else(|| error::Error::MalformedLine(line.to_string()))?;
+        .ok_or_else(|| error::ErrorKind::MalformedLine(line.to_string()))?;
     let key_part = line[..colon].trim();
     let value = line[colon + 1..].trim();
 
@@ -119,7 +121,7 @@ fn parse_line(line: &str) -> Result<(&str, Option<&str>, &str), error::Error> {
     }
 }
 
-pub fn parse_config<'a>(input: &'a str) -> Result<Config<'a>, error::Error> {
+pub fn parse_config<'a>(input: &'a str) -> Result<Config<'a>, Error> {
     let mut title = Vec::new();
     let mut body = Vec::new();
     let mut date = Vec::new();
@@ -137,28 +139,29 @@ pub fn parse_config<'a>(input: &'a str) -> Result<Config<'a>, error::Error> {
     let mut http_header = Vec::new();
     let mut test_url = Vec::new();
 
-    for line in input.lines() {
-        let line = line.trim();
+    for (i, raw_line) in input.lines().enumerate() {
+        let line = raw_line.trim();
         if line.is_empty() || line.starts_with('#') {
             continue;
         }
+        let locate = |kind| error::Error { line: i + 1, kind };
 
-        let (name, param, value) = parse_line(line)?;
+        let (name, param, value) = parse_line(line).map_err(&locate)?;
 
         match name {
-            "title" => title.push(XPath::try_from(value)?),
-            "body" => body.push(XPath::try_from(value)?),
-            "date" => date.push(XPath::try_from(value)?),
-            "author" => author.push(XPath::try_from(value)?),
-            "strip" => strip.push(XPath::try_from(value)?),
-            "strip_id_or_class" => strip_id_or_class.push(IdOrClass::try_from(value)?),
+            "title" => title.push(XPath::try_from(value).map_err(&locate)?),
+            "body" => body.push(XPath::try_from(value).map_err(&locate)?),
+            "date" => date.push(XPath::try_from(value).map_err(&locate)?),
+            "author" => author.push(XPath::try_from(value).map_err(&locate)?),
+            "strip" => strip.push(XPath::try_from(value).map_err(&locate)?),
+            "strip_id_or_class" => strip_id_or_class.push(IdOrClass::try_from(value).map_err(&locate)?),
             "strip_image_src" => strip_image_src.push(ImageSrcFragment(value)),
-            "prune" => prune = value.parse::<YesNo>()?.into(),
-            "tidy" => tidy = value.parse::<YesNo>()?.into(),
-            "autodetect_on_failure" => autodetect_on_failure = value.parse()?,
-            "single_page_link" => single_page_link = Some(XPath::try_from(value)?),
-            "single_page_link_in_feed" => single_page_link_in_feed = Some(XPath::try_from(value)?),
-            "next_page_link" => next_page_link = Some(XPath::try_from(value)?),
+            "prune" => prune = value.parse::<YesNo>().map_err(&locate)?.into(),
+            "tidy" => tidy = value.parse::<YesNo>().map_err(&locate)?.into(),
+            "autodetect_on_failure" => autodetect_on_failure = value.parse().map_err(&locate)?,
+            "single_page_link" => single_page_link = Some(XPath::try_from(value).map_err(&locate)?),
+            "single_page_link_in_feed" => single_page_link_in_feed = Some(XPath::try_from(value).map_err(&locate)?),
+            "next_page_link" => next_page_link = Some(XPath::try_from(value).map_err(&locate)?),
             "replace_string" => replace_string.push(ReplaceString {
                 find: param.unwrap_or(""),
                 replace: value,
@@ -199,7 +202,7 @@ mod tests {
     #[test]
     fn malformed_line_no_colon() {
         let result = parse_config("no colon here");
-        assert!(matches!(result, Err(error::Error::MalformedLine(_))));
+        assert!(matches!(result, Err(Error { kind: ErrorKind::MalformedLine(_), .. })));
     }
 
     #[test]
@@ -216,7 +219,7 @@ mod tests {
     fn yes_no_rejects_unknown() {
         assert!(matches!(
             "maybe".parse::<YesNo>(),
-            Err(error::Error::InvalidBoolValue(_))
+            Err(error::ErrorKind::InvalidBoolValue(_))
         ));
     }
 
@@ -249,7 +252,7 @@ mod tests {
     fn parse_line_no_colon_returns_error() {
         assert!(matches!(
             parse_line("badline"),
-            Err(error::Error::MalformedLine(_))
+            Err(error::ErrorKind::MalformedLine(_))
         ));
     }
 
@@ -336,7 +339,7 @@ mod tests {
     #[test]
     fn invalid_yes_no_returns_error() {
         let result = parse_config("prune: maybe\n");
-        assert!(matches!(result, Err(error::Error::InvalidBoolValue(_))));
+        assert!(matches!(result, Err(Error { kind: ErrorKind::InvalidBoolValue(_), .. })));
     }
 
     #[test]
@@ -351,7 +354,7 @@ mod tests {
     fn id_or_class_rejects_empty() {
         assert!(matches!(
             IdOrClass::try_from(""),
-            Err(error::Error::InvalidIdOrClass(_))
+            Err(error::ErrorKind::InvalidIdOrClass(_))
         ));
     }
 
@@ -359,21 +362,21 @@ mod tests {
     fn id_or_class_rejects_whitespace() {
         assert!(matches!(
             IdOrClass::try_from("foo bar"),
-            Err(error::Error::InvalidIdOrClass(_))
+            Err(error::ErrorKind::InvalidIdOrClass(_))
         ));
         assert!(matches!(
             IdOrClass::try_from("foo\tbar"),
-            Err(error::Error::InvalidIdOrClass(_))
+            Err(error::ErrorKind::InvalidIdOrClass(_))
         ));
         assert!(matches!(
             IdOrClass::try_from(" leading"),
-            Err(error::Error::InvalidIdOrClass(_))
+            Err(error::ErrorKind::InvalidIdOrClass(_))
         ));
     }
 
     #[test]
     fn parse_config_rejects_invalid_id_or_class() {
         let result = parse_config("strip_id_or_class: foo bar\n");
-        assert!(matches!(result, Err(error::Error::InvalidIdOrClass(_))));
+        assert!(matches!(result, Err(Error { kind: ErrorKind::InvalidIdOrClass(_), .. })));
     }
 }

@@ -1,7 +1,14 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum Error {
+#[error("line {line}: {kind}")]
+pub struct Error {
+    pub line: usize,
+    pub kind: ErrorKind,
+}
+
+#[derive(Error, Debug)]
+pub enum ErrorKind {
     #[error("malformed line (missing `:`): {0}")]
     MalformedLine(String),
 
