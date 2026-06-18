@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 mod error;
 
 pub struct Config<'a> {
@@ -37,6 +39,27 @@ impl From<bool> for YesNo {
     }
 }
 
+impl From<YesNo> for bool {
+    fn from(value: YesNo) -> Self {
+        match value {
+            YesNo::Yes => true,
+            YesNo::No => false,
+        }
+    }
+}
+
+impl FromStr for YesNo {
+    type Err = error::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "yes" => Ok(YesNo::Yes),
+            "no" => Ok(YesNo::No),
+            other => Err(error::Error::InvalidBoolValue(other.to_string())),
+        }
+    }
+}
+
 pub struct ReplaceString<'a> {
     pub find: &'a str,
     pub replace: &'a str,
@@ -48,14 +71,6 @@ pub struct HttpHeader<'a> {
 }
 
 pub struct TestUrl<'a>(pub &'a str);
-
-fn parse_yes_no(value: &str) -> Result<bool, error::Error> {
-    match value {
-        "yes" => Ok(true),
-        "no" => Ok(false),
-        other => Err(error::Error::InvalidBoolValue(other.to_string())),
-    }
-}
 
 fn parse_line(line: &str) -> Result<(&str, Option<&str>, &str), error::Error> {
     let colon = line
@@ -108,9 +123,9 @@ pub fn parse_config<'a>(input: &'a str) -> Result<Config<'a>, error::Error> {
             "strip" => strip.push(XPath(value)),
             "strip_id_or_class" => strip_id_or_class.push(IdOrClass(value)),
             "strip_image_src" => strip_image_src.push(ImageSrcFragment(value)),
-            "prune" => prune = parse_yes_no(value)?,
-            "tidy" => tidy = parse_yes_no(value)?,
-            "autodetect_on_failure" => autodetect_on_failure = YesNo::from(parse_yes_no(value)?),
+            "prune" => prune = value.parse::<YesNo>()?.into(),
+            "tidy" => tidy = value.parse::<YesNo>()?.into(),
+            "autodetect_on_failure" => autodetect_on_failure = value.parse()?,
             "single_page_link" => single_page_link = Some(XPath(value)),
             "single_page_link_in_feed" => single_page_link_in_feed = Some(XPath(value)),
             "next_page_link" => next_page_link = Some(XPath(value)),
@@ -159,18 +174,18 @@ mod tests {
 
     #[test]
     fn yes_no_parses_yes() {
-        assert_eq!(parse_yes_no("yes").unwrap(), true);
+        assert!(matches!("yes".parse::<YesNo>().unwrap(), YesNo::Yes));
     }
 
     #[test]
     fn yes_no_parses_no() {
-        assert_eq!(parse_yes_no("no").unwrap(), false);
+        assert!(matches!("no".parse::<YesNo>().unwrap(), YesNo::No));
     }
 
     #[test]
     fn yes_no_rejects_unknown() {
         assert!(matches!(
-            parse_yes_no("maybe"),
+            "maybe".parse::<YesNo>(),
             Err(error::Error::InvalidBoolValue(_))
         ));
     }
@@ -193,7 +208,8 @@ mod tests {
 
     #[test]
     fn parse_line_value_with_colon() {
-        let (name, param, value) = parse_line("http_header(User-agent): Mozilla/5.0 (iPad; CPU OS 12_0_1)").unwrap();
+        let (name, param, value) =
+            parse_line("http_header(User-agent): Mozilla/5.0 (iPad; CPU OS 12_0_1)").unwrap();
         assert_eq!(name, "http_header");
         assert_eq!(param, Some("User-agent"));
         assert_eq!(value, "Mozilla/5.0 (iPad; CPU OS 12_0_1)");
@@ -267,7 +283,8 @@ mod tests {
 
     #[test]
     fn single_page_link_last_wins() {
-        let input = "single_page_link: //a[@class='first']\nsingle_page_link: //a[@class='second']\n";
+        let input =
+            "single_page_link: //a[@class='first']\nsingle_page_link: //a[@class='second']\n";
         let config = parse_config(input).unwrap();
         assert_eq!(config.single_page_link.unwrap().0, "//a[@class='second']");
     }
