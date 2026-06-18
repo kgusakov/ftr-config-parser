@@ -56,6 +56,11 @@ pub fn parse_config<'a>(input: &'a str) -> Result<Config<'a>, error::Error> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
-    fn test() {}
+    fn malformed_line_no_colon() {
+        let result = parse_config("no colon here");
+        assert!(matches!(result, Err(error::Error::MalformedLine(_))));
+    }
 }
