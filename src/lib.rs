@@ -22,6 +22,21 @@ pub struct Config<'a> {
 }
 
 pub struct XPath<'a>(pub &'a str);
+
+impl<'a> TryFrom<&'a str> for XPath<'a> {
+    type Error = error::Error;
+
+    fn try_from(s: &'a str) -> Result<Self, Self::Error> {
+        if s.is_empty() {
+            return Err(error::Error::EmptyXPath);
+        }
+        sxd_xpath::Factory::new()
+            .build(s)
+            .map_err(|e| error::Error::InvalidXPath { expr: s.to_string(), source: e })?;
+        Ok(XPath(s))
+    }
+}
+
 pub struct IdOrClass<'a>(pub &'a str);
 
 impl<'a> TryFrom<&'a str> for IdOrClass<'a> {
@@ -131,19 +146,19 @@ pub fn parse_config<'a>(input: &'a str) -> Result<Config<'a>, error::Error> {
         let (name, param, value) = parse_line(line)?;
 
         match name {
-            "title" => title.push(XPath(value)),
-            "body" => body.push(XPath(value)),
-            "date" => date.push(XPath(value)),
-            "author" => author.push(XPath(value)),
-            "strip" => strip.push(XPath(value)),
+            "title" => title.push(XPath::try_from(value)?),
+            "body" => body.push(XPath::try_from(value)?),
+            "date" => date.push(XPath::try_from(value)?),
+            "author" => author.push(XPath::try_from(value)?),
+            "strip" => strip.push(XPath::try_from(value)?),
             "strip_id_or_class" => strip_id_or_class.push(IdOrClass::try_from(value)?),
             "strip_image_src" => strip_image_src.push(ImageSrcFragment(value)),
             "prune" => prune = value.parse::<YesNo>()?.into(),
             "tidy" => tidy = value.parse::<YesNo>()?.into(),
             "autodetect_on_failure" => autodetect_on_failure = value.parse()?,
-            "single_page_link" => single_page_link = Some(XPath(value)),
-            "single_page_link_in_feed" => single_page_link_in_feed = Some(XPath(value)),
-            "next_page_link" => next_page_link = Some(XPath(value)),
+            "single_page_link" => single_page_link = Some(XPath::try_from(value)?),
+            "single_page_link_in_feed" => single_page_link_in_feed = Some(XPath::try_from(value)?),
+            "next_page_link" => next_page_link = Some(XPath::try_from(value)?),
             "replace_string" => replace_string.push(ReplaceString {
                 find: param.unwrap_or(""),
                 replace: value,

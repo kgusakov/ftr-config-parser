@@ -10,4 +10,14 @@ pub enum Error {
 
     #[error("invalid HTML id/class value: {0}")]
     InvalidIdOrClass(String),
+
+    #[error("XPath expression must not be empty")]
+    EmptyXPath,
+
+    #[error("invalid XPath expression {expr:?}: {source}")]
+    InvalidXPath {
+        expr: String,
+        #[source]
+        source: sxd_xpath::ParserError,
+    },
 }
