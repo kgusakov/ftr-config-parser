@@ -25,15 +25,15 @@ pub struct IdOrClass<'a>(pub &'a str);
 pub struct ImageSrcFragment<'a>(pub &'a str);
 
 pub enum YesNo {
-    YES,
-    NO,
+    Yes,
+    No,
 }
 
 impl From<bool> for YesNo {
     fn from(value: bool) -> Self {
         match value {
-            true => Self::YES,
-            false => Self::NO,
+            true => Self::Yes,
+            false => Self::No,
         }
     }
 }
