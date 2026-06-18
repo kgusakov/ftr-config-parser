@@ -50,6 +50,14 @@ pub struct HttpHeader<'a> {
 
 pub struct TestUrl<'a>(pub &'a str);
 
+fn parse_yes_no(value: &str) -> Result<bool, error::Error> {
+    match value {
+        "yes" => Ok(true),
+        "no" => Ok(false),
+        other => Err(error::Error::InvalidBoolValue(other.to_string())),
+    }
+}
+
 pub fn parse_config<'a>(input: &'a str) -> Result<Config<'a>, error::Error> {
     todo!()
 }
@@ -62,5 +70,23 @@ mod tests {
     fn malformed_line_no_colon() {
         let result = parse_config("no colon here");
         assert!(matches!(result, Err(error::Error::MalformedLine(_))));
+    }
+
+    #[test]
+    fn yes_no_parses_yes() {
+        assert_eq!(parse_yes_no("yes").unwrap(), true);
+    }
+
+    #[test]
+    fn yes_no_parses_no() {
+        assert_eq!(parse_yes_no("no").unwrap(), false);
+    }
+
+    #[test]
+    fn yes_no_rejects_unknown() {
+        assert!(matches!(
+            parse_yes_no("maybe"),
+            Err(error::Error::InvalidBoolValue(_))
+        ));
     }
 }
