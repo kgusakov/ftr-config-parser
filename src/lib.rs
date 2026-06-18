@@ -4,6 +4,7 @@ mod error;
 
 pub use error::{Error, ErrorKind};
 
+#[derive(Debug)]
 pub struct Config<'a> {
     pub title: Vec<XPath<'a>>,
     pub body: Vec<XPath<'a>>,
@@ -23,6 +24,7 @@ pub struct Config<'a> {
     pub test_url: Vec<TestUrl<'a>>,
 }
 
+#[derive(Debug)]
 pub struct XPath<'a>(pub &'a str);
 
 impl<'a> TryFrom<&'a str> for XPath<'a> {
@@ -39,6 +41,7 @@ impl<'a> TryFrom<&'a str> for XPath<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct IdOrClass<'a>(pub &'a str);
 
 impl<'a> TryFrom<&'a str> for IdOrClass<'a> {
@@ -55,8 +58,10 @@ impl<'a> TryFrom<&'a str> for IdOrClass<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct ImageSrcFragment<'a>(pub &'a str);
 
+#[derive(Debug)]
 pub enum YesNo {
     Yes,
     No,
@@ -92,16 +97,19 @@ impl FromStr for YesNo {
     }
 }
 
+#[derive(Debug)]
 pub struct ReplaceString<'a> {
     pub find: &'a str,
     pub replace: &'a str,
 }
 
+#[derive(Debug)]
 pub struct HttpHeader<'a> {
     pub name: &'a str,
     pub value: &'a str,
 }
 
+#[derive(Debug)]
 pub struct TestUrl<'a>(pub &'a str);
 
 fn parse_line(line: &str) -> Result<(&str, Option<&str>, &str), error::ErrorKind> {
@@ -201,8 +209,9 @@ mod tests {
 
     #[test]
     fn malformed_line_no_colon() {
-        let result = parse_config("no colon here");
-        assert!(matches!(result, Err(Error { kind: ErrorKind::MalformedLine(_), .. })));
+        let err = parse_config("no colon here").unwrap_err();
+        assert!(matches!(err.kind, ErrorKind::MalformedLine(_)));
+        assert_eq!(err.line, 1);
     }
 
     #[test]
@@ -219,7 +228,7 @@ mod tests {
     fn yes_no_rejects_unknown() {
         assert!(matches!(
             "maybe".parse::<YesNo>(),
-            Err(error::ErrorKind::InvalidBoolValue(_))
+            Err(ErrorKind::InvalidBoolValue(_))
         ));
     }
 
@@ -252,7 +261,7 @@ mod tests {
     fn parse_line_no_colon_returns_error() {
         assert!(matches!(
             parse_line("badline"),
-            Err(error::ErrorKind::MalformedLine(_))
+            Err(ErrorKind::MalformedLine(_))
         ));
     }
 
@@ -338,8 +347,9 @@ mod tests {
 
     #[test]
     fn invalid_yes_no_returns_error() {
-        let result = parse_config("prune: maybe\n");
-        assert!(matches!(result, Err(Error { kind: ErrorKind::InvalidBoolValue(_), .. })));
+        let err = parse_config("prune: maybe\n").unwrap_err();
+        assert!(matches!(err.kind, ErrorKind::InvalidBoolValue(_)));
+        assert_eq!(err.line, 1);
     }
 
     #[test]
@@ -354,7 +364,7 @@ mod tests {
     fn id_or_class_rejects_empty() {
         assert!(matches!(
             IdOrClass::try_from(""),
-            Err(error::ErrorKind::InvalidIdOrClass(_))
+            Err(ErrorKind::InvalidIdOrClass(_))
         ));
     }
 
@@ -362,21 +372,39 @@ mod tests {
     fn id_or_class_rejects_whitespace() {
         assert!(matches!(
             IdOrClass::try_from("foo bar"),
-            Err(error::ErrorKind::InvalidIdOrClass(_))
+            Err(ErrorKind::InvalidIdOrClass(_))
         ));
         assert!(matches!(
             IdOrClass::try_from("foo\tbar"),
-            Err(error::ErrorKind::InvalidIdOrClass(_))
+            Err(ErrorKind::InvalidIdOrClass(_))
         ));
         assert!(matches!(
             IdOrClass::try_from(" leading"),
-            Err(error::ErrorKind::InvalidIdOrClass(_))
+            Err(ErrorKind::InvalidIdOrClass(_))
         ));
     }
 
     #[test]
     fn parse_config_rejects_invalid_id_or_class() {
-        let result = parse_config("strip_id_or_class: foo bar\n");
-        assert!(matches!(result, Err(Error { kind: ErrorKind::InvalidIdOrClass(_), .. })));
+        let err = parse_config("strip_id_or_class: foo bar\n").unwrap_err();
+        assert!(matches!(err.kind, ErrorKind::InvalidIdOrClass(_)));
+        assert_eq!(err.line, 1);
+    }
+
+    #[test]
+    fn error_reports_correct_line_number() {
+        let input = "body: //article\nprune: oops\n";
+        let err = parse_config(input).unwrap_err();
+        assert!(matches!(err.kind, ErrorKind::InvalidBoolValue(_)));
+        assert_eq!(err.line, 2);
+    }
+
+    #[test]
+    fn error_line_number_skips_blanks_and_comments() {
+        let input = "# comment\n\nbody: //article\nprune: oops\n";
+        let err = parse_config(input).unwrap_err();
+        assert!(matches!(err.kind, ErrorKind::InvalidBoolValue(_)));
+        // line 4 in the raw input (comment=1, blank=2, body=3, prune=4)
+        assert_eq!(err.line, 4);
     }
 }
