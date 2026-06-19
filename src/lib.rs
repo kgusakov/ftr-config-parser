@@ -155,31 +155,37 @@ pub fn parse_config(input: &str) -> Result<Config<'_>, Error> {
 
     for (i, raw_line) in input.lines().enumerate() {
         let line = raw_line.trim();
+
         if line.is_empty() || line.starts_with('#') {
             continue;
         }
-        let locate = |kind| error::Error { line: i + 1, kind };
 
-        let (name, param, value) = parse_line(line).map_err(&locate)?;
+        let locate_err = |kind| error::Error { line: i + 1, kind };
+
+        let (name, param, value) = parse_line(line).map_err(&locate_err)?;
 
         match name {
-            "title" => title.push(XPath::try_from(value).map_err(&locate)?),
-            "body" => body.push(XPath::try_from(value).map_err(&locate)?),
-            "date" => date.push(XPath::try_from(value).map_err(&locate)?),
-            "author" => author.push(XPath::try_from(value).map_err(&locate)?),
-            "strip" => strip.push(XPath::try_from(value).map_err(&locate)?),
+            "title" => title.push(XPath::try_from(value).map_err(&locate_err)?),
+            "body" => body.push(XPath::try_from(value).map_err(&locate_err)?),
+            "date" => date.push(XPath::try_from(value).map_err(&locate_err)?),
+            "author" => author.push(XPath::try_from(value).map_err(&locate_err)?),
+            "strip" => strip.push(XPath::try_from(value).map_err(&locate_err)?),
             "strip_id_or_class" => {
-                strip_id_or_class.push(IdOrClass::try_from(value).map_err(&locate)?);
+                strip_id_or_class.push(IdOrClass::try_from(value).map_err(&locate_err)?);
             }
             "strip_image_src" => strip_image_src.push(ImageSrcFragment(value)),
-            "prune" => prune = value.parse::<YesNo>().map_err(&locate)?.into(),
-            "tidy" => tidy = value.parse::<YesNo>().map_err(&locate)?.into(),
-            "autodetect_on_failure" => autodetect_on_failure = value.parse().map_err(&locate)?,
-            "single_page_link" => single_page_link = Some(XPath::try_from(value).map_err(&locate)?),
-            "single_page_link_in_feed" => {
-                single_page_link_in_feed = Some(XPath::try_from(value).map_err(&locate)?);
+            "prune" => prune = value.parse::<YesNo>().map_err(&locate_err)?.into(),
+            "tidy" => tidy = value.parse::<YesNo>().map_err(&locate_err)?.into(),
+            "autodetect_on_failure" => {
+                autodetect_on_failure = value.parse().map_err(&locate_err)?
             }
-            "next_page_link" => next_page_link = Some(XPath::try_from(value).map_err(&locate)?),
+            "single_page_link" => {
+                single_page_link = Some(XPath::try_from(value).map_err(&locate_err)?)
+            }
+            "single_page_link_in_feed" => {
+                single_page_link_in_feed = Some(XPath::try_from(value).map_err(&locate_err)?);
+            }
+            "next_page_link" => next_page_link = Some(XPath::try_from(value).map_err(&locate_err)?),
             "replace_string" => replace_string.push(ReplaceString {
                 find: param.unwrap_or(""),
                 replace: value,
