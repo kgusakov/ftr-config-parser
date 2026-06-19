@@ -179,10 +179,10 @@ pub fn parse_config(input: &str) -> Result<Config<'_>, Error> {
             "prune" => prune = value.parse().map_err(&locate_err)?,
             "tidy" => tidy = value.parse().map_err(&locate_err)?,
             "autodetect_on_failure" => {
-                autodetect_on_failure = value.parse().map_err(&locate_err)?
+                autodetect_on_failure = value.parse().map_err(&locate_err)?;
             }
             "single_page_link" => {
-                single_page_link = Some(XPath::try_from(value).map_err(&locate_err)?)
+                single_page_link = Some(XPath::try_from(value).map_err(&locate_err)?);
             }
             "single_page_link_in_feed" => {
                 single_page_link_in_feed = Some(XPath::try_from(value).map_err(&locate_err)?);
