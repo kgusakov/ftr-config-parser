@@ -1,6 +1,7 @@
 FROM rust:1.94.0-alpine3.23
 
-RUN apk update && apk add --no-cache nodejs openssl-dev
+# openssl needed for cargo-udeps install
+RUN apk update && apk add --no-cache nodejs openssl-dev openssl-libs-static
 
 RUN rustup component add clippy rustfmt
 
