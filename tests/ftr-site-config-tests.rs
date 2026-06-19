@@ -1,6 +1,5 @@
 use ftr_config_parser::{
-    parse_config, Config, HttpHeader, IdOrClass, ReplaceString, TestUrl, XPath,
-    YesNo,
+    Config, HttpHeader, IdOrClass, ReplaceString, TestUrl, XPath, YesNo, parse_config,
 };
 
 #[test]
@@ -22,20 +21,26 @@ fn golem_de() {
                 XPath("//li[not(.//text()[normalize-space()])][not(@class)]"),
                 XPath("//div[contains(@class, 'go-teaser-block')]"),
                 XPath("//ul[contains(@class, 'go-alink-list')]"),
-                XPath("//hr[contains(@class, 'go-hr')]/following-sibling::div[contains(@class, 'go-grid')]"),
+                XPath(
+                    "//hr[contains(@class, 'go-hr')]/following-sibling::div[contains(@class, 'go-grid')]"
+                ),
                 XPath("//div[contains(@class, 'go-article-header__meta')]"),
                 XPath("//div[contains(@class, 'go-article-header__button-bar')]"),
                 XPath("//article[contains(@class, 'go-teaser--variant-affiliate')]"),
                 XPath("//div[contains(@class, 'go-gallery__actions')]"),
                 XPath("//nav[contains(@class, 'go-article__pagination')]"),
-                XPath("//div[contains(@class, 'go-article-header__series')][.//a[contains(@class, 'go-label')]]"),
+                XPath(
+                    "//div[contains(@class, 'go-article-header__series')][.//a[contains(@class, 'go-label')]]"
+                ),
                 XPath("//details[contains(@class, 'go-article__index')]"),
                 XPath("//img[@src='']"),
                 XPath("//div[contains(@style,'margin')]"),
                 XPath("//figure[contains(@id,'gvideo')]"),
                 XPath("//figure/figcaption[contains(text(), 'Bitte aktivieren Sie Javascript')]"),
                 XPath("//svg[contains(@class, 'go-external-link__icon')]"),
-                XPath("//span[@class='go-vh' and normalize-space(text())='(öffnet im neuen Fenster)']"),
+                XPath(
+                    "//span[@class='go-vh' and normalize-space(text())='(öffnet im neuen Fenster)']"
+                ),
             ],
             strip_id_or_class: vec![
                 IdOrClass("go-heading--h1"),
@@ -64,20 +69,45 @@ fn golem_de() {
                 "//li[contains(@class, 'go-pagination__item--next')]/a",
             )),
             replace_string: vec![
-                ReplaceString { find: "<h1", replace: "<h2" },
-                ReplaceString { find: "</h1>", replace: "</h2>" },
+                ReplaceString {
+                    find: "<h1",
+                    replace: "<h2"
+                },
+                ReplaceString {
+                    find: "</h1>",
+                    replace: "</h2>"
+                },
             ],
             http_header: vec![
-                HttpHeader { name: "Cookie", value: "golem_consent20=cmp|250101" },
-                HttpHeader { name: "user-agent", value: "Googlebot" },
-                HttpHeader { name: "Cookie", value: "golem_multipage=single" },
+                HttpHeader {
+                    name: "Cookie",
+                    value: "golem_consent20=cmp|250101"
+                },
+                HttpHeader {
+                    name: "user-agent",
+                    value: "Googlebot"
+                },
+                HttpHeader {
+                    name: "Cookie",
+                    value: "golem_multipage=single"
+                },
             ],
             test_url: vec![
-                TestUrl("https://www.golem.de/news/arbeitsplatz-unter-druck-was-haelt-dich-noch-im-job-2509-200011.html"),
-                TestUrl("https://www.golem.de/news/onlineshopping-auf-pump-boomt-erstmals-mehr-als-zehn-millionen-neue-ratenkredite-2509-199696.html"),
-                TestUrl("http://www.golem.de/news/intel-core-i7-5960x-im-test-die-pc-revolution-beginnt-mit-octacore-und-ddr4-1408-108893.html"),
-                TestUrl("http://www.golem.de/news/test-infamous-first-light-neonbunter-actionspass-1408-108914.html"),
-                TestUrl("https://www.golem.de/news/ressourcenschonend-programmieren-so-wurden-spiele-fuer-den-commodore-64-und-atari-entwickelt-2307-175508.html"),
+                TestUrl(
+                    "https://www.golem.de/news/arbeitsplatz-unter-druck-was-haelt-dich-noch-im-job-2509-200011.html"
+                ),
+                TestUrl(
+                    "https://www.golem.de/news/onlineshopping-auf-pump-boomt-erstmals-mehr-als-zehn-millionen-neue-ratenkredite-2509-199696.html"
+                ),
+                TestUrl(
+                    "http://www.golem.de/news/intel-core-i7-5960x-im-test-die-pc-revolution-beginnt-mit-octacore-und-ddr4-1408-108893.html"
+                ),
+                TestUrl(
+                    "http://www.golem.de/news/test-infamous-first-light-neonbunter-actionspass-1408-108914.html"
+                ),
+                TestUrl(
+                    "https://www.golem.de/news/ressourcenschonend-programmieren-so-wurden-spiele-fuer-den-commodore-64-und-atari-entwickelt-2307-175508.html"
+                ),
             ],
         }
     );
@@ -118,15 +148,27 @@ fn lwn_net() {
             single_page_link_in_feed: None,
             next_page_link: None,
             replace_string: vec![
-                ReplaceString { find: r#"<p class="Cat1HL">"#, replace: "<h1>" },
-                ReplaceString { find: r#"<h2 class="SummaryHL">"#, replace: "<h3>" },
-                ReplaceString { find: r#"<p class="Cat2HL">"#, replace: "<h2>" },
+                ReplaceString {
+                    find: r#"<p class="Cat1HL">"#,
+                    replace: "<h1>"
+                },
+                ReplaceString {
+                    find: r#"<h2 class="SummaryHL">"#,
+                    replace: "<h3>"
+                },
+                ReplaceString {
+                    find: r#"<p class="Cat2HL">"#,
+                    replace: "<h2>"
+                },
                 ReplaceString {
                     find: r#"<hr width="60%" align="left">"#,
                     replace: r#"<div class="ftrss-strip">"#,
                 },
                 // trailing `)` in the param is consumed by the outer `)` detection
-                ReplaceString { find: "to post comments", replace: "</div>" },
+                ReplaceString {
+                    find: "to post comments",
+                    replace: "</div>"
+                },
             ],
             http_header: vec![],
             test_url: vec![
@@ -201,10 +243,16 @@ fn next_ink() {
             }],
             http_header: vec![],
             test_url: vec![
-                TestUrl("https://next.ink/120832/le-reseau-interministeriel-de-letat-rie-fete-ses-10-ans-et-se-modernise/"),
-                TestUrl("https://next.ink/127657/edito-limportance-de-bien-citer-et-verifier-ses-sources/"),
+                TestUrl(
+                    "https://next.ink/120832/le-reseau-interministeriel-de-letat-rie-fete-ses-10-ans-et-se-modernise/"
+                ),
+                TestUrl(
+                    "https://next.ink/127657/edito-limportance-de-bien-citer-et-verifier-ses-sources/"
+                ),
                 TestUrl("https://next.ink/136362/les-ecrans-du-temps-perdu-pour-les-enfants/"),
-                TestUrl("https://next.ink/143136/planete-9-son-absence-serait-statistiquement-impossible/"),
+                TestUrl(
+                    "https://next.ink/143136/planete-9-son-absence-serait-statistiquement-impossible/"
+                ),
             ],
         }
     );
@@ -261,7 +309,10 @@ fn mediapart_fr() {
                     replace: r#"<strong class="news__heading__top__intro"#,
                 },
                 // `find_string` further down is also unknown; `replace_string` with no param gets find=""
-                ReplaceString { find: "", replace: r#"class="foo_cntr"# },
+                ReplaceString {
+                    find: "",
+                    replace: r#"class="foo_cntr"#
+                },
             ],
             http_header: vec![],
             test_url: vec![TestUrl(
