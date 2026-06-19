@@ -129,6 +129,12 @@ fn parse_line(line: &str) -> Result<(&str, Option<&str>, &str), error::ErrorKind
     }
 }
 
+/// Parse an ftr site-config file from its text content.
+///
+/// # Errors
+///
+/// Returns [`Error`] when a line value fails validation
+/// The error includes the 1-based line number of the offending line.
 pub fn parse_config(input: &str) -> Result<Config<'_>, Error> {
     let mut title = Vec::new();
     let mut body = Vec::new();
