@@ -36,7 +36,10 @@ impl<'a> TryFrom<&'a str> for XPath<'a> {
         }
         sxd_xpath::Factory::new()
             .build(s)
-            .map_err(|e| error::ErrorKind::InvalidXPath { expr: s.to_string(), source: e })?;
+            .map_err(|e| error::ErrorKind::InvalidXPath {
+                expr: s.to_string(),
+                source: e,
+            })?;
         Ok(XPath(s))
     }
 }
@@ -162,13 +165,17 @@ pub fn parse_config<'a>(input: &'a str) -> Result<Config<'a>, Error> {
             "date" => date.push(XPath::try_from(value).map_err(&locate)?),
             "author" => author.push(XPath::try_from(value).map_err(&locate)?),
             "strip" => strip.push(XPath::try_from(value).map_err(&locate)?),
-            "strip_id_or_class" => strip_id_or_class.push(IdOrClass::try_from(value).map_err(&locate)?),
+            "strip_id_or_class" => {
+                strip_id_or_class.push(IdOrClass::try_from(value).map_err(&locate)?)
+            }
             "strip_image_src" => strip_image_src.push(ImageSrcFragment(value)),
             "prune" => prune = value.parse::<YesNo>().map_err(&locate)?.into(),
             "tidy" => tidy = value.parse::<YesNo>().map_err(&locate)?.into(),
             "autodetect_on_failure" => autodetect_on_failure = value.parse().map_err(&locate)?,
             "single_page_link" => single_page_link = Some(XPath::try_from(value).map_err(&locate)?),
-            "single_page_link_in_feed" => single_page_link_in_feed = Some(XPath::try_from(value).map_err(&locate)?),
+            "single_page_link_in_feed" => {
+                single_page_link_in_feed = Some(XPath::try_from(value).map_err(&locate)?)
+            }
             "next_page_link" => next_page_link = Some(XPath::try_from(value).map_err(&locate)?),
             "replace_string" => replace_string.push(ReplaceString {
                 find: param.unwrap_or(""),
