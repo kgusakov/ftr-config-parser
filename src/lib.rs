@@ -13,8 +13,8 @@ pub struct Config<'a> {
     pub strip: Vec<XPath<'a>>,
     pub strip_id_or_class: Vec<IdOrClass<'a>>,
     pub strip_image_src: Vec<ImageSrcFragment<'a>>,
-    pub prune: bool,
-    pub tidy: bool,
+    pub prune: YesNo,
+    pub tidy: YesNo,
     pub autodetect_on_failure: YesNo,
     pub single_page_link: Option<XPath<'a>>,
     pub single_page_link_in_feed: Option<XPath<'a>>,
@@ -143,8 +143,8 @@ pub fn parse_config(input: &str) -> Result<Config<'_>, Error> {
     let mut strip = Vec::new();
     let mut strip_id_or_class = Vec::new();
     let mut strip_image_src = Vec::new();
-    let mut prune = true;
-    let mut tidy = false;
+    let mut prune = YesNo::Yes;
+    let mut tidy = YesNo::No;
     let mut autodetect_on_failure = YesNo::Yes;
     let mut single_page_link = None;
     let mut single_page_link_in_feed = None;
@@ -176,8 +176,8 @@ pub fn parse_config(input: &str) -> Result<Config<'_>, Error> {
                 }
             }
             "strip_image_src" => strip_image_src.push(ImageSrcFragment(value)),
-            "prune" => prune = value.parse::<YesNo>().map_err(&locate_err)?.into(),
-            "tidy" => tidy = value.parse::<YesNo>().map_err(&locate_err)?.into(),
+            "prune" => prune = value.parse().map_err(&locate_err)?,
+            "tidy" => tidy = value.parse().map_err(&locate_err)?,
             "autodetect_on_failure" => {
                 autodetect_on_failure = value.parse().map_err(&locate_err)?
             }
@@ -302,8 +302,8 @@ mod tests {
                 strip: vec![],
                 strip_id_or_class: vec![],
                 strip_image_src: vec![],
-                prune: true,
-                tidy: false,
+                prune: YesNo::Yes,
+                tidy: YesNo::No,
                 autodetect_on_failure: YesNo::Yes,
                 single_page_link: None,
                 single_page_link_in_feed: None,
@@ -332,7 +332,7 @@ mod tests {
             config.strip_id_or_class,
             vec![IdOrClass("editsection"), IdOrClass("toc")]
         );
-        assert!(!config.prune);
+        assert_eq!(config.prune, YesNo::No);
     }
 
     #[test]
