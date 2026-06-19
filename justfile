@@ -11,3 +11,9 @@ clippy:
 
 test:
     RUST_LOG="info" cargo test
+
+setup:
+    git submodule update --init
+
+check-corpus:
+    cargo run --example check_corpus

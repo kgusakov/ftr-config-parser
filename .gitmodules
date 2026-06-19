@@ -1,0 +1,3 @@
+[submodule "data/ftr-site-config"]
+	path = data/ftr-site-config
+	url = https://github.com/fivefilters/ftr-site-config
