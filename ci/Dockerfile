@@ -1,6 +1,6 @@
 FROM rust:1.94.0-alpine3.23
 
-RUN apk update && apk add --no-cache nodejs
+RUN apk update && apk add --no-cache nodejs openssl-dev
 
 RUN rustup component add clippy rustfmt
 
