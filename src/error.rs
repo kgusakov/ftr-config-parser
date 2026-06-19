@@ -4,6 +4,7 @@ use thiserror::Error;
 #[error("line {line}: {kind}")]
 pub struct Error {
     pub line: usize,
+    #[source]
     pub kind: ErrorKind,
 }
 
