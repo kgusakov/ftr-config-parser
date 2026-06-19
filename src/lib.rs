@@ -4,7 +4,7 @@ mod error;
 
 pub use error::{Error, ErrorKind};
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Config<'a> {
     pub title: Vec<XPath<'a>>,
     pub body: Vec<XPath<'a>>,
@@ -24,7 +24,7 @@ pub struct Config<'a> {
     pub test_url: Vec<TestUrl<'a>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct XPath<'a>(pub &'a str);
 
 impl<'a> TryFrom<&'a str> for XPath<'a> {
@@ -44,7 +44,7 @@ impl<'a> TryFrom<&'a str> for XPath<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct IdOrClass<'a>(pub &'a str);
 
 impl<'a> TryFrom<&'a str> for IdOrClass<'a> {
@@ -61,10 +61,10 @@ impl<'a> TryFrom<&'a str> for IdOrClass<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct ImageSrcFragment<'a>(pub &'a str);
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum YesNo {
     Yes,
     No,
@@ -97,19 +97,19 @@ impl FromStr for YesNo {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct ReplaceString<'a> {
     pub find: &'a str,
     pub replace: &'a str,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct HttpHeader<'a> {
     pub name: &'a str,
     pub value: &'a str,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct TestUrl<'a>(pub &'a str);
 
 fn parse_line(line: &str) -> Result<(&str, Option<&str>, &str), error::ErrorKind> {
@@ -218,13 +218,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn malformed_line_no_colon() {
-        let err = parse_config("no colon here").unwrap_err();
-        assert!(matches!(err.kind, ErrorKind::MalformedLine(_)));
-        assert_eq!(err.line, 1);
-    }
-
-    #[test]
     fn yes_no_parses_yes() {
         assert!(matches!("yes".parse::<YesNo>().unwrap(), YesNo::Yes));
     }
@@ -243,28 +236,42 @@ mod tests {
     }
 
     #[test]
+    fn malformed_line_no_colon() {
+        assert!(matches!(
+            parse_config("no colon here").unwrap_err(),
+            Error {
+                kind: ErrorKind::MalformedLine(_),
+                line: 1
+            }
+        ));
+    }
+
+    #[test]
     fn parse_line_simple_key() {
-        let (name, param, value) = parse_line("body: //div[@id='content']").unwrap();
-        assert_eq!(name, "body");
-        assert_eq!(param, None);
-        assert_eq!(value, "//div[@id='content']");
+        assert_eq!(
+            parse_line("body: //div[@id='content']").unwrap(),
+            ("body", None, "//div[@id='content']")
+        );
     }
 
     #[test]
     fn parse_line_parametric_key() {
-        let (name, param, value) = parse_line("http_header(Cookie): euConsent=true").unwrap();
-        assert_eq!(name, "http_header");
-        assert_eq!(param, Some("Cookie"));
-        assert_eq!(value, "euConsent=true");
+        assert_eq!(
+            parse_line("http_header(Cookie): euConsent=true").unwrap(),
+            ("http_header", Some("Cookie"), "euConsent=true")
+        );
     }
 
     #[test]
     fn parse_line_value_with_colon() {
-        let (name, param, value) =
-            parse_line("http_header(User-agent): Mozilla/5.0 (iPad; CPU OS 12_0_1)").unwrap();
-        assert_eq!(name, "http_header");
-        assert_eq!(param, Some("User-agent"));
-        assert_eq!(value, "Mozilla/5.0 (iPad; CPU OS 12_0_1)");
+        assert_eq!(
+            parse_line("http_header(User-agent): Mozilla/5.0 (iPad; CPU OS 12_0_1)").unwrap(),
+            (
+                "http_header",
+                Some("User-agent"),
+                "Mozilla/5.0 (iPad; CPU OS 12_0_1)"
+            )
+        );
     }
 
     #[test]
@@ -277,18 +284,34 @@ mod tests {
 
     #[test]
     fn empty_input_returns_defaults() {
-        let config = parse_config("").unwrap();
-        assert!(config.title.is_empty());
-        assert!(config.body.is_empty());
-        assert!(config.prune);
-        assert!(!config.tidy);
-        assert!(matches!(config.autodetect_on_failure, YesNo::Yes));
-        assert!(config.single_page_link.is_none());
+        assert_eq!(
+            parse_config("").unwrap(),
+            Config {
+                title: vec![],
+                body: vec![],
+                date: vec![],
+                author: vec![],
+                strip: vec![],
+                strip_id_or_class: vec![],
+                strip_image_src: vec![],
+                prune: true,
+                tidy: false,
+                autodetect_on_failure: YesNo::Yes,
+                single_page_link: None,
+                single_page_link_in_feed: None,
+                next_page_link: None,
+                replace_string: vec![],
+                http_header: vec![],
+                test_url: vec![],
+            }
+        );
     }
 
     #[test]
     fn comments_and_blank_lines_ignored() {
-        let config = parse_config("# this is a comment\n\n# another comment\n").unwrap();
+        let config =
+            parse_config("#title: div[@id='title'] but this is a comment\n\n# another comment\n")
+                .unwrap();
         assert!(config.title.is_empty());
     }
 
@@ -296,11 +319,11 @@ mod tests {
     fn wikipedia_example() {
         let input = "body: //div[@id='content']\nstrip_id_or_class: editsection\nstrip_id_or_class: toc\nprune: no\n";
         let config = parse_config(input).unwrap();
-        assert_eq!(config.body.len(), 1);
-        assert_eq!(config.body[0].0, "//div[@id='content']");
-        assert_eq!(config.strip_id_or_class.len(), 2);
-        assert_eq!(config.strip_id_or_class[0].0, "editsection");
-        assert_eq!(config.strip_id_or_class[1].0, "toc");
+        assert_eq!(config.body, vec![XPath("//div[@id='content']")]);
+        assert_eq!(
+            config.strip_id_or_class,
+            vec![IdOrClass("editsection"), IdOrClass("toc")]
+        );
         assert!(!config.prune);
     }
 
@@ -308,29 +331,40 @@ mod tests {
     fn multiple_vec_fields_accumulated() {
         let input = "title: //h1\ntitle: //h2\nbody: //article\nbody: //main\n";
         let config = parse_config(input).unwrap();
-        assert_eq!(config.title.len(), 2);
-        assert_eq!(config.title[0].0, "//h1");
-        assert_eq!(config.title[1].0, "//h2");
-        assert_eq!(config.body.len(), 2);
+        assert_eq!(config.title, vec![XPath("//h1"), XPath("//h2")]);
+        assert_eq!(config.body, vec![XPath("//article"), XPath("//main")]);
     }
 
     #[test]
     fn http_header_parsed() {
         let input = "http_header(Cookie): euConsent=true\nhttp_header(User-agent): Mozilla/5.0\n";
         let config = parse_config(input).unwrap();
-        assert_eq!(config.http_header.len(), 2);
-        assert_eq!(config.http_header[0].name, "Cookie");
-        assert_eq!(config.http_header[0].value, "euConsent=true");
-        assert_eq!(config.http_header[1].name, "User-agent");
+        assert_eq!(
+            config.http_header,
+            vec![
+                HttpHeader {
+                    name: "Cookie",
+                    value: "euConsent=true"
+                },
+                HttpHeader {
+                    name: "User-agent",
+                    value: "Mozilla/5.0"
+                },
+            ]
+        );
     }
 
     #[test]
     fn replace_string_parsed() {
         let input = "replace_string(foo): bar\n";
         let config = parse_config(input).unwrap();
-        assert_eq!(config.replace_string.len(), 1);
-        assert_eq!(config.replace_string[0].find, "foo");
-        assert_eq!(config.replace_string[0].replace, "bar");
+        assert_eq!(
+            config.replace_string,
+            vec![ReplaceString {
+                find: "foo",
+                replace: "bar"
+            }]
+        );
     }
 
     #[test]
@@ -338,15 +372,20 @@ mod tests {
         let input =
             "single_page_link: //a[@class='first']\nsingle_page_link: //a[@class='second']\n";
         let config = parse_config(input).unwrap();
-        assert_eq!(config.single_page_link.unwrap().0, "//a[@class='second']");
+        assert_eq!(config.single_page_link, Some(XPath("//a[@class='second']")));
     }
 
     #[test]
     fn test_url_accumulated() {
         let input = "test_url: https://example.com/a\ntest_url: https://example.com/b\n";
         let config = parse_config(input).unwrap();
-        assert_eq!(config.test_url.len(), 2);
-        assert_eq!(config.test_url[0].0, "https://example.com/a");
+        assert_eq!(
+            config.test_url,
+            vec![
+                TestUrl("https://example.com/a"),
+                TestUrl("https://example.com/b")
+            ]
+        );
     }
 
     #[test]
@@ -358,8 +397,13 @@ mod tests {
     #[test]
     fn invalid_yes_no_returns_error() {
         let err = parse_config("prune: maybe\n").unwrap_err();
-        assert!(matches!(err.kind, ErrorKind::InvalidBoolValue(_)));
-        assert_eq!(err.line, 1);
+        assert!(matches!(
+            err,
+            Error {
+                kind: ErrorKind::InvalidBoolValue(_),
+                line: 1
+            }
+        ));
     }
 
     #[test]
