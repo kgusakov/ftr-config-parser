@@ -171,7 +171,9 @@ pub fn parse_config(input: &str) -> Result<Config<'_>, Error> {
             "author" => author.push(XPath::try_from(value).map_err(&locate_err)?),
             "strip" => strip.push(XPath::try_from(value).map_err(&locate_err)?),
             "strip_id_or_class" => {
-                strip_id_or_class.push(IdOrClass::try_from(value).map_err(&locate_err)?);
+                for token in value.split_ascii_whitespace() {
+                    strip_id_or_class.push(IdOrClass::try_from(token).map_err(&locate_err)?);
+                }
             }
             "strip_image_src" => strip_image_src.push(ImageSrcFragment(value)),
             "prune" => prune = value.parse::<YesNo>().map_err(&locate_err)?.into(),
@@ -445,10 +447,12 @@ mod tests {
     }
 
     #[test]
-    fn parse_config_rejects_invalid_id_or_class() {
-        let err = parse_config("strip_id_or_class: foo bar\n").unwrap_err();
-        assert!(matches!(err.kind, ErrorKind::InvalidIdOrClass(_)));
-        assert_eq!(err.line, 1);
+    fn strip_id_or_class_space_separated() {
+        let config = parse_config("strip_id_or_class: foo bar baz\n").unwrap();
+        assert_eq!(
+            config.strip_id_or_class,
+            vec![IdOrClass("foo"), IdOrClass("bar"), IdOrClass("baz")]
+        );
     }
 
     #[test]
