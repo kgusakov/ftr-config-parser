@@ -72,10 +72,7 @@ pub enum YesNo {
 
 impl From<bool> for YesNo {
     fn from(value: bool) -> Self {
-        match value {
-            true => Self::Yes,
-            false => Self::No,
-        }
+        if value { Self::Yes } else { Self::No }
     }
 }
 
@@ -132,7 +129,7 @@ fn parse_line(line: &str) -> Result<(&str, Option<&str>, &str), error::ErrorKind
     }
 }
 
-pub fn parse_config<'a>(input: &'a str) -> Result<Config<'a>, Error> {
+pub fn parse_config(input: &str) -> Result<Config<'_>, Error> {
     let mut title = Vec::new();
     let mut body = Vec::new();
     let mut date = Vec::new();
@@ -166,7 +163,7 @@ pub fn parse_config<'a>(input: &'a str) -> Result<Config<'a>, Error> {
             "author" => author.push(XPath::try_from(value).map_err(&locate)?),
             "strip" => strip.push(XPath::try_from(value).map_err(&locate)?),
             "strip_id_or_class" => {
-                strip_id_or_class.push(IdOrClass::try_from(value).map_err(&locate)?)
+                strip_id_or_class.push(IdOrClass::try_from(value).map_err(&locate)?);
             }
             "strip_image_src" => strip_image_src.push(ImageSrcFragment(value)),
             "prune" => prune = value.parse::<YesNo>().map_err(&locate)?.into(),
@@ -174,7 +171,7 @@ pub fn parse_config<'a>(input: &'a str) -> Result<Config<'a>, Error> {
             "autodetect_on_failure" => autodetect_on_failure = value.parse().map_err(&locate)?,
             "single_page_link" => single_page_link = Some(XPath::try_from(value).map_err(&locate)?),
             "single_page_link_in_feed" => {
-                single_page_link_in_feed = Some(XPath::try_from(value).map_err(&locate)?)
+                single_page_link_in_feed = Some(XPath::try_from(value).map_err(&locate)?);
             }
             "next_page_link" => next_page_link = Some(XPath::try_from(value).map_err(&locate)?),
             "replace_string" => replace_string.push(ReplaceString {
@@ -277,8 +274,8 @@ mod tests {
         let config = parse_config("").unwrap();
         assert!(config.title.is_empty());
         assert!(config.body.is_empty());
-        assert_eq!(config.prune, true);
-        assert_eq!(config.tidy, false);
+        assert!(config.prune);
+        assert!(!config.tidy);
         assert!(matches!(config.autodetect_on_failure, YesNo::Yes));
         assert!(config.single_page_link.is_none());
     }
@@ -298,7 +295,7 @@ mod tests {
         assert_eq!(config.strip_id_or_class.len(), 2);
         assert_eq!(config.strip_id_or_class[0].0, "editsection");
         assert_eq!(config.strip_id_or_class[1].0, "toc");
-        assert_eq!(config.prune, false);
+        assert!(!config.prune);
     }
 
     #[test]
