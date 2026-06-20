@@ -13,6 +13,9 @@ pub enum ErrorKind {
     #[error("malformed line (missing `:`): {0}")]
     MalformedLine(String),
 
+    #[error("unclosed parenthesis in key: {0}")]
+    UnclosedParen(String),
+
     #[error("invalid yes/no value: {0}")]
     InvalidBoolValue(String),
 

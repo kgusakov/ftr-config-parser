@@ -120,7 +120,9 @@ fn parse_line(line: &str) -> Result<(&str, Option<&str>, &str), error::ErrorKind
     let value = line[colon + 1..].trim();
 
     if let Some(open) = key_part.find('(') {
-        let close = key_part.find(')').unwrap_or(key_part.len());
+        let close = key_part
+            .find(')')
+            .ok_or_else(|| error::ErrorKind::UnclosedParen(key_part.to_string()))?;
         let name = key_part[..open].trim();
         let param = key_part[open + 1..close].trim();
         Ok((name, Some(param), value))
@@ -261,6 +263,14 @@ mod tests {
             assert!(matches!(
                 parse_line("badline"),
                 Err(ErrorKind::MalformedLine(_))
+            ));
+        }
+
+        #[test]
+        fn unclosed_paren_returns_error() {
+            assert!(matches!(
+                parse_line("http_header(Cookie: value"),
+                Err(ErrorKind::UnclosedParen(ref s)) if s == "http_header(Cookie"
             ));
         }
     }
