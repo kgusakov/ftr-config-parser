@@ -4,7 +4,7 @@ mod error;
 
 pub use error::{Error, ErrorKind};
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Config<'a> {
     pub title: Vec<XPath<'a>>,
     pub body: Vec<XPath<'a>>,
@@ -24,7 +24,7 @@ pub struct Config<'a> {
     pub test_url: Vec<TestUrl<'a>>,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct XPath<'a>(pub &'a str);
 
 impl<'a> TryFrom<&'a str> for XPath<'a> {
@@ -44,7 +44,7 @@ impl<'a> TryFrom<&'a str> for XPath<'a> {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct IdOrClass<'a>(pub &'a str);
 
 impl<'a> TryFrom<&'a str> for IdOrClass<'a> {
@@ -61,10 +61,10 @@ impl<'a> TryFrom<&'a str> for IdOrClass<'a> {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct ImageSrcFragment<'a>(pub &'a str);
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum YesNo {
     Yes,
     No,
@@ -97,19 +97,19 @@ impl FromStr for YesNo {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct ReplaceString<'a> {
     pub find: &'a str,
     pub replace: &'a str,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct HttpHeader<'a> {
     pub name: &'a str,
     pub value: &'a str,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct TestUrl<'a>(pub &'a str);
 
 fn parse_line(line: &str) -> Result<(&str, Option<&str>, &str), error::ErrorKind> {
