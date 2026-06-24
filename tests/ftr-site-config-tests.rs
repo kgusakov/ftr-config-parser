@@ -164,9 +164,8 @@ fn lwn_net() {
                     find: r#"<hr width="60%" align="left">"#,
                     replace: r#"<div class="ftrss-strip">"#,
                 },
-                // trailing `)` in the param is consumed by the outer `)` detection
                 ReplaceString {
-                    find: "to post comments",
+                    find: "to post comments)",
                     replace: "</div>"
                 },
             ],
@@ -238,7 +237,7 @@ fn next_ink() {
             next_page_link: None,
             // find_string is unknown and ignored; replace_string without a param gets find=""
             replace_string: vec![ReplaceString {
-                find: "",
+                find: r#"class="wp-block-heading""#,
                 replace: r#"class="wb_foo""#,
             }],
             http_header: vec![],
@@ -310,7 +309,7 @@ fn mediapart_fr() {
                 },
                 // `find_string` further down is also unknown; `replace_string` with no param gets find=""
                 ReplaceString {
-                    find: "",
+                    find: r#"class="container"#,
                     replace: r#"class="foo_cntr"#
                 },
             ],
