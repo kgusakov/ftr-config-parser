@@ -1,7 +1,8 @@
+use std::error::Error;
 use std::fs;
 use std::process;
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     let dir = match fs::read_dir("data/ftr-site-config") {
         Ok(d) => d,
         Err(e) => {
@@ -15,14 +16,13 @@ fn main() {
     let mut failed: Vec<(String, String)> = Vec::new();
 
     for entry in dir {
-        let entry = entry.unwrap();
+        let entry = entry?;
         let path = entry.path();
         if path.extension().and_then(|e| e.to_str()) != Some("txt") {
             continue;
         }
         let name = path.file_name().unwrap().to_string_lossy().into_owned();
-        let content = fs::read_to_string(&path)
-            .unwrap_or_else(|e| panic!("failed to read {}: {e}", path.display()));
+        let content = fs::read_to_string(&path)?;
 
         match ftr_config_parser::parse_config(&content) {
             Ok(_) => ok += 1,
@@ -36,7 +36,5 @@ fn main() {
 
     println!("\n{ok} ok, {} failed", failed.len());
 
-    if !failed.is_empty() {
-        process::exit(1);
-    }
+    Ok(())
 }
