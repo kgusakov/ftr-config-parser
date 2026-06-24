@@ -31,6 +31,9 @@ pub enum ErrorKind {
     #[error("invalid HTML id/class value: {0}")]
     InvalidIdOrClass(String),
 
+    #[error("strip_id_or_class must not be empty")]
+    EmptyStripImageSrc,
+
     #[error("XPath expression must not be empty")]
     EmptyXPath,
 

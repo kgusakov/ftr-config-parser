@@ -64,6 +64,18 @@ impl<'a> TryFrom<&'a str> for IdOrClass<'a> {
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct ImageSrcFragment<'a>(pub &'a str);
 
+impl<'a> TryFrom<&'a str> for ImageSrcFragment<'a> {
+    type Error = error::ErrorKind;
+
+    fn try_from(s: &'a str) -> Result<Self, Self::Error> {
+        if s.is_empty() {
+            return Err(ErrorKind::EmptyStripImageSrc);
+        }
+
+        Ok(ImageSrcFragment(s))
+    }
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum YesNo {
     Yes,
@@ -225,7 +237,9 @@ pub fn parse_config(input: &str) -> Result<Config<'_>, Error> {
                     strip_id_or_class.push(IdOrClass::try_from(token).map_err(&locate_err)?);
                 }
             }
-            "strip_image_src" => strip_image_src.push(ImageSrcFragment(value)),
+            "strip_image_src" => {
+                strip_image_src.push(ImageSrcFragment::try_from(value).map_err(&locate_err)?)
+            }
             "prune" => prune = value.parse().map_err(&locate_err)?,
             "tidy" => tidy = value.parse().map_err(&locate_err)?,
             "autodetect_on_failure" => {
@@ -626,8 +640,8 @@ mod tests {
 
         #[test]
         fn empty_value() {
-            let config = parse_config("strip_image_src: \n").unwrap();
-            assert_eq!(config.strip_image_src, vec![ImageSrcFragment("")]);
+            let err = parse_config("strip_image_src: \n").unwrap_err();
+            assert_matches!(err.kind, ErrorKind::EmptyStripImageSrc);
         }
 
         #[test]
