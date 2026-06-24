@@ -113,21 +113,67 @@ pub struct HttpHeader<'a> {
 pub struct TestUrl<'a>(pub &'a str);
 
 fn parse_line(line: &str) -> Result<(&str, Option<&str>, &str), error::ErrorKind> {
+    let line = line.trim();
+
     let colon = line
-        .find(':')
+        .find(|ch| ch == ':' || ch == '(')
         .ok_or_else(|| error::ErrorKind::MalformedLine(line.to_string()))?;
     let key_part = line[..colon].trim();
-    let value = line[colon + 1..].trim();
 
-    if let Some(open) = key_part.find('(') {
-        let close = key_part
-            .find(')')
-            .ok_or_else(|| error::ErrorKind::UnclosedParen(key_part.to_string()))?;
-        let name = key_part[..open].trim();
-        let param = key_part[open + 1..close].trim();
-        Ok((name, Some(param), value))
-    } else {
+    if matches!(
+        key_part,
+        "title"
+            | "body"
+            | "date"
+            | "author"
+            | "strip"
+            | "strip_id_or_class"
+            | "strip_image_src"
+            | "prune"
+            | "tidy"
+            | "autodetect_on_failure"
+            | "single_page_link"
+            | "single_page_link_in_feed"
+            | "next_page_link"
+            | "test_url"
+            | "find_string"
+    ) {
+        if line.as_bytes()[colon] != b':' {
+            return Err(ErrorKind::MalformedSimpleKey(key_part.to_owned()));
+        }
+
+        let value = line[colon + 1..].trim();
+
         Ok((key_part, None, value))
+    } else if key_part == "replace_string" {
+        if line.as_bytes()[colon] == b':' {
+            let value = line[colon + 1..].trim();
+            Ok((key_part, None, value))
+        } else {
+            let close = line
+                .find("):")
+                .ok_or_else(|| error::ErrorKind::UnclosedParen(key_part.to_string()))?;
+
+            let param = line[colon + 1..close].trim();
+            let value = line[close + 2..].trim();
+
+            Ok((key_part, Some(param), value))
+        }
+    } else if key_part == "http_header" {
+        if line.as_bytes()[colon] != b'(' {
+            return Err(ErrorKind::MalformedKeyWithParam(key_part.to_owned()));
+        }
+
+        let close = line
+            .find("):")
+            .ok_or_else(|| error::ErrorKind::UnclosedParen(key_part.to_string()))?;
+
+        let param = line[colon + 1..close].trim();
+        let value = line[close + 2..].trim();
+
+        Ok((key_part, Some(param), value))
+    } else {
+        Ok(("", None, ""))
     }
 }
 
@@ -154,6 +200,8 @@ pub fn parse_config(input: &str) -> Result<Config<'_>, Error> {
     let mut replace_string = Vec::new();
     let mut http_header = Vec::new();
     let mut test_url = Vec::new();
+
+    let mut find_string: Option<&str> = None;
 
     for (i, raw_line) in input.lines().enumerate() {
         let line = raw_line.trim();
@@ -190,10 +238,26 @@ pub fn parse_config(input: &str) -> Result<Config<'_>, Error> {
                 single_page_link_in_feed = Some(XPath::try_from(value).map_err(&locate_err)?);
             }
             "next_page_link" => next_page_link = Some(XPath::try_from(value).map_err(&locate_err)?),
-            "replace_string" => replace_string.push(ReplaceString {
-                find: param.unwrap_or(""),
-                replace: value,
-            }),
+            "find_string" => find_string = Some(value),
+            "replace_string" => {
+                if let Some(p) = param {
+                    replace_string.push(ReplaceString {
+                        find: p,
+                        replace: value,
+                    })
+                } else {
+                    if let Some(f_string) = find_string {
+                        replace_string.push(ReplaceString {
+                            find: f_string,
+                            replace: value,
+                        });
+
+                        find_string = None
+                    } else {
+                        return Err(locate_err(ErrorKind::MalformedReplaceString()));
+                    }
+                }
+            }
             "http_header" => http_header.push(HttpHeader {
                 name: param.unwrap_or(""),
                 value,
@@ -225,6 +289,8 @@ pub fn parse_config(input: &str) -> Result<Config<'_>, Error> {
 
 #[cfg(test)]
 mod tests {
+    use core::assert_matches;
+
     use super::*;
 
     mod parse_line {
@@ -260,18 +326,15 @@ mod tests {
 
         #[test]
         fn no_colon_returns_error() {
-            assert!(matches!(
-                parse_line("badline"),
-                Err(ErrorKind::MalformedLine(_))
-            ));
+            assert_matches!(parse_line("badline"), Err(ErrorKind::MalformedLine(_)));
         }
 
         #[test]
         fn unclosed_paren_returns_error() {
-            assert!(matches!(
+            assert_matches!(
                 parse_line("http_header(Cookie: value"),
-                Err(ErrorKind::UnclosedParen(ref s)) if s == "http_header(Cookie"
-            ));
+                Err(ErrorKind::UnclosedParen(ref s)) if s == "http_header"
+            );
         }
     }
 
@@ -280,28 +343,25 @@ mod tests {
 
         #[test]
         fn parses_yes() {
-            assert!(matches!("yes".parse::<YesNo>().unwrap(), YesNo::Yes));
+            assert_matches!("yes".parse::<YesNo>().unwrap(), YesNo::Yes);
         }
 
         #[test]
         fn parses_no() {
-            assert!(matches!("no".parse::<YesNo>().unwrap(), YesNo::No));
+            assert_matches!("no".parse::<YesNo>().unwrap(), YesNo::No);
         }
 
         #[test]
         fn rejects_unknown() {
-            assert!(matches!(
+            assert_matches!(
                 "maybe".parse::<YesNo>(),
                 Err(ErrorKind::InvalidBoolValue(_))
-            ));
+            );
         }
 
         #[test]
         fn rejects_empty() {
-            assert!(matches!(
-                "".parse::<YesNo>(),
-                Err(ErrorKind::InvalidBoolValue(_))
-            ));
+            assert_matches!("".parse::<YesNo>(), Err(ErrorKind::InvalidBoolValue(_)));
         }
     }
 
@@ -318,26 +378,23 @@ mod tests {
 
         #[test]
         fn rejects_empty() {
-            assert!(matches!(
-                IdOrClass::try_from(""),
-                Err(ErrorKind::InvalidIdOrClass(_))
-            ));
+            assert_matches!(IdOrClass::try_from(""), Err(ErrorKind::InvalidIdOrClass(_)));
         }
 
         #[test]
         fn rejects_whitespace() {
-            assert!(matches!(
+            assert_matches!(
                 IdOrClass::try_from("foo bar"),
                 Err(ErrorKind::InvalidIdOrClass(_))
-            ));
-            assert!(matches!(
+            );
+            assert_matches!(
                 IdOrClass::try_from("foo\tbar"),
                 Err(ErrorKind::InvalidIdOrClass(_))
-            ));
-            assert!(matches!(
+            );
+            assert_matches!(
                 IdOrClass::try_from(" leading"),
                 Err(ErrorKind::InvalidIdOrClass(_))
-            ));
+            );
         }
     }
 
@@ -346,15 +403,12 @@ mod tests {
 
         #[test]
         fn rejects_empty() {
-            assert!(matches!(XPath::try_from(""), Err(ErrorKind::EmptyXPath)));
+            assert_matches!(XPath::try_from(""), Err(ErrorKind::EmptyXPath));
         }
 
         #[test]
         fn rejects_invalid_expression() {
-            assert!(matches!(
-                XPath::try_from("["),
-                Err(ErrorKind::InvalidXPath { .. })
-            ));
+            assert_matches!(XPath::try_from("["), Err(ErrorKind::InvalidXPath { .. }));
         }
     }
 
@@ -400,26 +454,26 @@ mod tests {
 
         #[test]
         fn malformed_line_no_colon() {
-            assert!(matches!(
+            assert_matches!(
                 parse_config("no colon here").unwrap_err(),
                 Error {
                     kind: ErrorKind::MalformedLine(_),
                     line: 1
                 }
-            ));
+            );
         }
 
         #[test]
         fn error_reports_correct_line_number() {
             let input = "body: //article\nprune: oops\n";
             let err = parse_config(input).unwrap_err();
-            assert!(matches!(
+            assert_matches!(
                 err,
                 Error {
                     kind: ErrorKind::InvalidBoolValue(_),
                     line: 2
                 }
-            ));
+            );
         }
 
         #[test]
@@ -427,13 +481,13 @@ mod tests {
             let input = "# comment\n\nbody: //article\nprune: oops\n";
             let err = parse_config(input).unwrap_err();
             // line 4 in the raw input (comment=1, blank=2, body=3, prune=4)
-            assert!(matches!(
+            assert_matches!(
                 err,
                 Error {
                     kind: ErrorKind::InvalidBoolValue(_),
                     line: 4
                 }
-            ));
+            );
         }
     }
 
@@ -617,6 +671,30 @@ mod tests {
                     find: "foo",
                     replace: "bar"
                 }]
+            );
+        }
+
+        #[test]
+        fn separate_find_replace_form() {
+            let config = parse_config("find_string: foo\n replace_string: bar\n").unwrap();
+            assert_eq!(
+                config.replace_string,
+                vec![ReplaceString {
+                    find: "foo",
+                    replace: "bar"
+                }]
+            );
+        }
+
+        #[test]
+        fn separate_find_replace_form_no_find() {
+            let config = parse_config("replace_string: bar\n");
+            assert_matches!(
+                config,
+                Err(Error {
+                    kind: ErrorKind::MalformedReplaceString(),
+                    ..
+                })
             );
         }
 

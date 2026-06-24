@@ -10,8 +10,17 @@ pub struct Error {
 
 #[derive(Error, Debug)]
 pub enum ErrorKind {
-    #[error("malformed line (missing `:`): {0}")]
+    #[error("malformed line: {0}")]
     MalformedLine(String),
+
+    #[error("key {0} has no params")]
+    MalformedSimpleKey(String),
+
+    #[error("replace_string with no param must be prepended by find_string field")]
+    MalformedReplaceString(),
+
+    #[error("key {0} can be defined only together with param")]
+    MalformedKeyWithParam(String),
 
     #[error("unclosed parenthesis in key: {0}")]
     UnclosedParen(String),
