@@ -43,4 +43,7 @@ pub enum ErrorKind {
         #[source]
         source: sxd_xpath::ParserError,
     },
+
+    #[error("find_string part of replace_string must not be empty")]
+    EmptyFindString,
 }

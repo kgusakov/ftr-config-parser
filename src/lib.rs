@@ -19,7 +19,7 @@ pub struct Config<'a> {
     pub single_page_link: Option<XPath<'a>>,
     pub single_page_link_in_feed: Option<XPath<'a>>,
     pub next_page_link: Option<XPath<'a>>,
-    pub replace_string: Vec<ReplaceString<'a>>,
+    pub replace_string: Vec<FindReplaceString<'a>>,
     pub http_header: Vec<HttpHeader<'a>>,
     pub test_url: Vec<TestUrl<'a>>,
 }
@@ -110,8 +110,23 @@ impl FromStr for YesNo {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct ReplaceString<'a> {
-    pub find: &'a str,
+pub struct FindString<'a>(&'a str);
+
+impl<'a> TryFrom<&'a str> for FindString<'a> {
+    type Error = error::ErrorKind;
+
+    fn try_from(s: &'a str) -> Result<Self, Self::Error> {
+        if s.is_empty() {
+            return Err(ErrorKind::EmptyFindString);
+        }
+
+        Ok(FindString(s))
+    }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub struct FindReplaceString<'a> {
+    pub find: FindString<'a>,
     pub replace: &'a str,
 }
 
@@ -213,7 +228,7 @@ pub fn parse_config(input: &str) -> Result<Config<'_>, Error> {
     let mut http_header = Vec::new();
     let mut test_url = Vec::new();
 
-    let mut find_string: Option<&str> = None;
+    let mut find_string: Option<FindString> = None;
 
     for (i, raw_line) in input.lines().enumerate() {
         let line = raw_line.trim();
@@ -252,16 +267,20 @@ pub fn parse_config(input: &str) -> Result<Config<'_>, Error> {
                 single_page_link_in_feed = Some(XPath::try_from(value).map_err(&locate_err)?);
             }
             "next_page_link" => next_page_link = Some(XPath::try_from(value).map_err(&locate_err)?),
-            "find_string" => find_string = Some(value),
+            "find_string" => find_string = Some(FindString::try_from(value).map_err(&locate_err)?),
             "replace_string" => {
-                if let Some(p) = param {
-                    replace_string.push(ReplaceString {
+                if let Some(p) = param
+                    .map(|f| FindString::try_from(f))
+                    .transpose()
+                    .map_err(&locate_err)?
+                {
+                    replace_string.push(FindReplaceString {
                         find: p,
                         replace: value,
                     })
                 } else {
                     if let Some(f_string) = find_string {
-                        replace_string.push(ReplaceString {
+                        replace_string.push(FindReplaceString {
                             find: f_string,
                             replace: value,
                         });
@@ -669,8 +688,8 @@ mod tests {
             let config = parse_config("replace_string(foo): \n").unwrap();
             assert_eq!(
                 config.replace_string,
-                vec![ReplaceString {
-                    find: "foo",
+                vec![FindReplaceString {
+                    find: FindString("foo"),
                     replace: ""
                 }]
             );
@@ -681,8 +700,8 @@ mod tests {
             let config = parse_config("replace_string(foo): bar\n").unwrap();
             assert_eq!(
                 config.replace_string,
-                vec![ReplaceString {
-                    find: "foo",
+                vec![FindReplaceString {
+                    find: FindString("foo"),
                     replace: "bar"
                 }]
             );
@@ -693,8 +712,8 @@ mod tests {
             let config = parse_config("find_string: foo\n replace_string: bar\n").unwrap();
             assert_eq!(
                 config.replace_string,
-                vec![ReplaceString {
-                    find: "foo",
+                vec![FindReplaceString {
+                    find: FindString("foo"),
                     replace: "bar"
                 }]
             );
@@ -719,12 +738,12 @@ mod tests {
             assert_eq!(
                 config.replace_string,
                 vec![
-                    ReplaceString {
-                        find: "foo",
+                    FindReplaceString {
+                        find: FindString("foo"),
                         replace: "bar"
                     },
-                    ReplaceString {
-                        find: "baz",
+                    FindReplaceString {
+                        find: FindString("baz"),
                         replace: "qux"
                     },
                 ]

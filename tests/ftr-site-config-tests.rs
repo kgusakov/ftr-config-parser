@@ -1,5 +1,6 @@
 use ftr_config_parser::{
-    Config, HttpHeader, IdOrClass, ReplaceString, TestUrl, XPath, YesNo, parse_config,
+    Config, FindReplaceString, FindString, HttpHeader, IdOrClass, TestUrl, XPath, YesNo,
+    parse_config,
 };
 
 #[test]
@@ -69,12 +70,12 @@ fn golem_de() {
                 "//li[contains(@class, 'go-pagination__item--next')]/a",
             )),
             replace_string: vec![
-                ReplaceString {
-                    find: "<h1",
+                FindReplaceString {
+                    find: FindString::try_from("<h1").unwrap(),
                     replace: "<h2"
                 },
-                ReplaceString {
-                    find: "</h1>",
+                FindReplaceString {
+                    find: FindString::try_from("</h1>").unwrap(),
                     replace: "</h2>"
                 },
             ],
@@ -148,24 +149,24 @@ fn lwn_net() {
             single_page_link_in_feed: None,
             next_page_link: None,
             replace_string: vec![
-                ReplaceString {
-                    find: r#"<p class="Cat1HL">"#,
+                FindReplaceString {
+                    find: FindString::try_from(r#"<p class="Cat1HL">"#).unwrap(),
                     replace: "<h1>"
                 },
-                ReplaceString {
-                    find: r#"<h2 class="SummaryHL">"#,
+                FindReplaceString {
+                    find: FindString::try_from(r#"<h2 class="SummaryHL">"#).unwrap(),
                     replace: "<h3>"
                 },
-                ReplaceString {
-                    find: r#"<p class="Cat2HL">"#,
+                FindReplaceString {
+                    find: FindString::try_from(r#"<p class="Cat2HL">"#).unwrap(),
                     replace: "<h2>"
                 },
-                ReplaceString {
-                    find: r#"<hr width="60%" align="left">"#,
+                FindReplaceString {
+                    find: FindString::try_from(r#"<hr width="60%" align="left">"#).unwrap(),
                     replace: r#"<div class="ftrss-strip">"#,
                 },
-                ReplaceString {
-                    find: "to post comments)",
+                FindReplaceString {
+                    find: FindString::try_from("to post comments)").unwrap(),
                     replace: "</div>"
                 },
             ],
@@ -236,8 +237,8 @@ fn next_ink() {
             single_page_link_in_feed: None,
             next_page_link: None,
             // find_string is unknown and ignored; replace_string without a param gets find=""
-            replace_string: vec![ReplaceString {
-                find: r#"class="wp-block-heading""#,
+            replace_string: vec![FindReplaceString {
+                find: FindString::try_from(r#"class="wp-block-heading""#).unwrap(),
                 replace: r#"class="wb_foo""#,
             }],
             http_header: vec![],
@@ -303,13 +304,13 @@ fn mediapart_fr() {
             next_page_link: None,
             replace_string: vec![
                 // `find_string` before this is an unknown key and is ignored
-                ReplaceString {
-                    find: r#"<p class="news__heading__top__intro"#,
+                FindReplaceString {
+                    find: FindString::try_from(r#"<p class="news__heading__top__intro"#).unwrap(),
                     replace: r#"<strong class="news__heading__top__intro"#,
                 },
                 // `find_string` further down is also unknown; `replace_string` with no param gets find=""
-                ReplaceString {
-                    find: r#"class="container"#,
+                FindReplaceString {
+                    find: FindString::try_from(r#"class="container"#).unwrap(),
                     replace: r#"class="foo_cntr"#
                 },
             ],
