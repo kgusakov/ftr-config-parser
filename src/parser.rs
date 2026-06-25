@@ -1,0 +1,742 @@
+use crate::error::{self, Error, ErrorKind};
+use crate::types::{
+    Config, FindReplaceString, FindString, HttpHeader, IdOrClass, ImageSrcFragment, TestUrl, XPath,
+    YesNo,
+};
+
+fn parse_line(line: &str) -> Result<(&str, Option<&str>, &str), error::ErrorKind> {
+    let line = line.trim();
+
+    let colon = line
+        .find([':', '('])
+        .ok_or_else(|| error::ErrorKind::MalformedLine(line.to_string()))?;
+    let key_part = line[..colon].trim();
+
+    if matches!(
+        key_part,
+        "title"
+            | "body"
+            | "date"
+            | "author"
+            | "strip"
+            | "strip_id_or_class"
+            | "strip_image_src"
+            | "prune"
+            | "tidy"
+            | "autodetect_on_failure"
+            | "single_page_link"
+            | "single_page_link_in_feed"
+            | "next_page_link"
+            | "test_url"
+            | "find_string"
+    ) {
+        if line.as_bytes()[colon] != b':' {
+            return Err(ErrorKind::MalformedSimpleKey(key_part.to_owned()));
+        }
+
+        let value = line[colon + 1..].trim();
+
+        Ok((key_part, None, value))
+    } else if key_part == "replace_string" {
+        if line.as_bytes()[colon] == b':' {
+            let value = line[colon + 1..].trim();
+            Ok((key_part, None, value))
+        } else {
+            let close = line
+                .find("):")
+                .ok_or_else(|| error::ErrorKind::UnclosedParen(key_part.to_string()))?;
+
+            let param = line[colon + 1..close].trim();
+            let value = line[close + 2..].trim();
+
+            Ok((key_part, Some(param), value))
+        }
+    } else if key_part == "http_header" {
+        if line.as_bytes()[colon] != b'(' {
+            return Err(ErrorKind::MalformedKeyWithParam(key_part.to_owned()));
+        }
+
+        let close = line
+            .find("):")
+            .ok_or_else(|| error::ErrorKind::UnclosedParen(key_part.to_string()))?;
+
+        let param = line[colon + 1..close].trim();
+        let value = line[close + 2..].trim();
+
+        Ok((key_part, Some(param), value))
+    } else {
+        Ok(("", None, ""))
+    }
+}
+
+/// Parse an ftr site-config file from its text content.
+///
+/// # Errors
+///
+/// Returns [`Error`] when a line value fails validation
+/// The error includes the 1-based line number of the offending line.
+pub fn parse_config(input: &str) -> Result<Config<'_>, Error> {
+    let mut title = Vec::new();
+    let mut body = Vec::new();
+    let mut date = Vec::new();
+    let mut author = Vec::new();
+    let mut strip = Vec::new();
+    let mut strip_id_or_class = Vec::new();
+    let mut strip_image_src = Vec::new();
+    let mut prune = YesNo::Yes;
+    let mut tidy = YesNo::No;
+    let mut autodetect_on_failure = YesNo::Yes;
+    let mut single_page_link = None;
+    let mut single_page_link_in_feed = None;
+    let mut next_page_link = None;
+    let mut replace_string = Vec::new();
+    let mut http_header = Vec::new();
+    let mut test_url = Vec::new();
+
+    let mut find_string: Option<FindString> = None;
+
+    for (i, raw_line) in input.lines().enumerate() {
+        let line = raw_line.trim();
+
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+
+        let locate_err = |kind| error::Error { line: i + 1, kind };
+
+        let (name, param, value) = parse_line(line).map_err(&locate_err)?;
+
+        match name {
+            "title" => title.push(XPath::try_from(value).map_err(&locate_err)?),
+            "body" => body.push(XPath::try_from(value).map_err(&locate_err)?),
+            "date" => date.push(XPath::try_from(value).map_err(&locate_err)?),
+            "author" => author.push(XPath::try_from(value).map_err(&locate_err)?),
+            "strip" => strip.push(XPath::try_from(value).map_err(&locate_err)?),
+            "strip_id_or_class" => {
+                for token in value.split_ascii_whitespace() {
+                    strip_id_or_class.push(IdOrClass::try_from(token).map_err(&locate_err)?);
+                }
+            }
+            "strip_image_src" => {
+                strip_image_src.push(ImageSrcFragment::try_from(value).map_err(&locate_err)?);
+            }
+            "prune" => prune = value.parse().map_err(&locate_err)?,
+            "tidy" => tidy = value.parse().map_err(&locate_err)?,
+            "autodetect_on_failure" => {
+                autodetect_on_failure = value.parse().map_err(&locate_err)?;
+            }
+            "single_page_link" => {
+                single_page_link = Some(XPath::try_from(value).map_err(&locate_err)?);
+            }
+            "single_page_link_in_feed" => {
+                single_page_link_in_feed = Some(XPath::try_from(value).map_err(&locate_err)?);
+            }
+            "next_page_link" => next_page_link = Some(XPath::try_from(value).map_err(&locate_err)?),
+            "find_string" => find_string = Some(FindString::try_from(value).map_err(&locate_err)?),
+            "replace_string" => {
+                if let Some(p) = param
+                    .map(FindString::try_from)
+                    .transpose()
+                    .map_err(&locate_err)?
+                {
+                    replace_string.push(FindReplaceString {
+                        find: p,
+                        replace: value,
+                    });
+                } else if let Some(f_string) = find_string {
+                    replace_string.push(FindReplaceString {
+                        find: f_string,
+                        replace: value,
+                    });
+
+                    find_string = None;
+                } else {
+                    return Err(locate_err(ErrorKind::MalformedReplaceString()));
+                }
+            }
+            "http_header" => http_header.push(HttpHeader {
+                name: param.unwrap_or(""),
+                value,
+            }),
+            "test_url" => test_url.push(TestUrl(value)),
+            _ => {}
+        }
+    }
+
+    Ok(Config {
+        title,
+        body,
+        date,
+        author,
+        strip,
+        strip_id_or_class,
+        strip_image_src,
+        prune,
+        tidy,
+        autodetect_on_failure,
+        single_page_link,
+        single_page_link_in_feed,
+        next_page_link,
+        replace_string,
+        http_header,
+        test_url,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use core::assert_matches;
+
+    use super::*;
+
+    mod parse_line {
+        use super::*;
+
+        #[test]
+        fn simple_key() {
+            assert_eq!(
+                parse_line("body: //div[@id='content']").unwrap(),
+                ("body", None, "//div[@id='content']")
+            );
+        }
+
+        #[test]
+        fn parametric_key() {
+            assert_eq!(
+                parse_line("http_header(Cookie): euConsent=true").unwrap(),
+                ("http_header", Some("Cookie"), "euConsent=true")
+            );
+        }
+
+        #[test]
+        fn value_with_colon() {
+            assert_eq!(
+                parse_line("http_header(User-agent): Mozilla/5.0 (iPad; CPU OS 12_0_1)").unwrap(),
+                (
+                    "http_header",
+                    Some("User-agent"),
+                    "Mozilla/5.0 (iPad; CPU OS 12_0_1)"
+                )
+            );
+        }
+
+        #[test]
+        fn no_colon_returns_error() {
+            assert_matches!(parse_line("badline"), Err(ErrorKind::MalformedLine(_)));
+        }
+
+        #[test]
+        fn unclosed_paren_returns_error() {
+            assert_matches!(
+                parse_line("http_header(Cookie: value"),
+                Err(ErrorKind::UnclosedParen(ref s)) if s == "http_header"
+            );
+        }
+    }
+
+    mod general {
+        use super::*;
+
+        #[test]
+        fn empty_input_returns_defaults() {
+            assert_eq!(
+                parse_config("").unwrap(),
+                Config {
+                    title: vec![],
+                    body: vec![],
+                    date: vec![],
+                    author: vec![],
+                    strip: vec![],
+                    strip_id_or_class: vec![],
+                    strip_image_src: vec![],
+                    prune: YesNo::Yes,
+                    tidy: YesNo::No,
+                    autodetect_on_failure: YesNo::Yes,
+                    single_page_link: None,
+                    single_page_link_in_feed: None,
+                    next_page_link: None,
+                    replace_string: vec![],
+                    http_header: vec![],
+                    test_url: vec![],
+                }
+            );
+        }
+
+        #[test]
+        fn comments_and_blank_lines_ignored() {
+            let config = parse_config("#title: //div[@id='title']\n\n# another comment\n").unwrap();
+            assert_eq!(config.title, vec![]);
+        }
+
+        #[test]
+        fn unknown_keys_silently_skipped() {
+            let config = parse_config("unknown_directive: some value\n").unwrap();
+            assert_eq!(config.title, vec![]);
+        }
+
+        #[test]
+        fn malformed_line_no_colon() {
+            assert_matches!(
+                parse_config("no colon here").unwrap_err(),
+                Error {
+                    kind: ErrorKind::MalformedLine(_),
+                    line: 1
+                }
+            );
+        }
+
+        #[test]
+        fn error_reports_correct_line_number() {
+            let input = "body: //article\nprune: oops\n";
+            let err = parse_config(input).unwrap_err();
+            assert_matches!(
+                err,
+                Error {
+                    kind: ErrorKind::InvalidBoolValue(_),
+                    line: 2
+                }
+            );
+        }
+
+        #[test]
+        fn error_line_number_skips_blanks_and_comments() {
+            let input = "# comment\n\nbody: //article\nprune: oops\n";
+            let err = parse_config(input).unwrap_err();
+            // line 4 in the raw input (comment=1, blank=2, body=3, prune=4)
+            assert_matches!(
+                err,
+                Error {
+                    kind: ErrorKind::InvalidBoolValue(_),
+                    line: 4
+                }
+            );
+        }
+    }
+
+    mod title {
+        use super::*;
+
+        #[test]
+        fn single_value() {
+            let config = parse_config("title: //h1\n").unwrap();
+            assert_eq!(config.title, vec![XPath("//h1")]);
+        }
+
+        #[test]
+        fn multiple_values() {
+            let config = parse_config("title: //h1\ntitle: //h2\n").unwrap();
+            assert_eq!(config.title, vec![XPath("//h1"), XPath("//h2")]);
+        }
+    }
+
+    mod body {
+        use super::*;
+
+        #[test]
+        fn single_value() {
+            let config = parse_config("body: //div[@id='content']\n").unwrap();
+            assert_eq!(config.body, vec![XPath("//div[@id='content']")]);
+        }
+
+        #[test]
+        fn multiple_values() {
+            let config = parse_config("body: //article\nbody: //main\n").unwrap();
+            assert_eq!(config.body, vec![XPath("//article"), XPath("//main")]);
+        }
+    }
+
+    mod date {
+        use super::*;
+
+        #[test]
+        fn single_value() {
+            let config = parse_config("date: //time[@class='published']\n").unwrap();
+            assert_eq!(config.date, vec![XPath("//time[@class='published']")]);
+        }
+
+        #[test]
+        fn multiple_values() {
+            let config = parse_config("date: //time\ndate: //span[@class='date']\n").unwrap();
+            assert_eq!(
+                config.date,
+                vec![XPath("//time"), XPath("//span[@class='date']")]
+            );
+        }
+    }
+
+    mod author {
+        use super::*;
+
+        #[test]
+        fn single_value() {
+            let config = parse_config("author: //span[@class='author']\n").unwrap();
+            assert_eq!(config.author, vec![XPath("//span[@class='author']")]);
+        }
+
+        #[test]
+        fn multiple_values() {
+            let config =
+                parse_config("author: //span[@class='author']\nauthor: //a[@rel='author']\n")
+                    .unwrap();
+            assert_eq!(
+                config.author,
+                vec![
+                    XPath("//span[@class='author']"),
+                    XPath("//a[@rel='author']")
+                ]
+            );
+        }
+    }
+
+    mod strip {
+        use super::*;
+
+        #[test]
+        fn single_value() {
+            let config = parse_config("strip: //div[@class='ad']\n").unwrap();
+            assert_eq!(config.strip, vec![XPath("//div[@class='ad']")]);
+        }
+
+        #[test]
+        fn multiple_values() {
+            let config = parse_config("strip: //div[@class='ad']\nstrip: //aside\n").unwrap();
+            assert_eq!(
+                config.strip,
+                vec![XPath("//div[@class='ad']"), XPath("//aside")]
+            );
+        }
+    }
+
+    mod strip_id_or_class {
+        use super::*;
+
+        #[test]
+        fn empty_value() {
+            // Empty value yields no tokens — field stays empty, no error
+            let config = parse_config("strip_id_or_class: \n").unwrap();
+            assert_eq!(config.strip_id_or_class, vec![]);
+        }
+
+        #[test]
+        fn single_value() {
+            let config = parse_config("strip_id_or_class: sidebar\n").unwrap();
+            assert_eq!(config.strip_id_or_class, vec![IdOrClass("sidebar")]);
+        }
+
+        #[test]
+        fn multiple_values() {
+            let config =
+                parse_config("strip_id_or_class: foo bar\nstrip_id_or_class: baz\n").unwrap();
+            assert_eq!(
+                config.strip_id_or_class,
+                vec![IdOrClass("foo"), IdOrClass("bar"), IdOrClass("baz")]
+            );
+        }
+
+        #[test]
+        fn multiple_values_per_line() {
+            let config = parse_config("strip_id_or_class: foo bar baz").unwrap();
+            assert_eq!(
+                config.strip_id_or_class,
+                vec![IdOrClass("foo"), IdOrClass("bar"), IdOrClass("baz")]
+            );
+        }
+    }
+
+    mod strip_image_src {
+        use super::*;
+
+        #[test]
+        fn empty_value() {
+            let err = parse_config("strip_image_src: \n").unwrap_err();
+            assert_matches!(err.kind, ErrorKind::EmptyStripImageSrc);
+        }
+
+        #[test]
+        fn single_value() {
+            let config = parse_config("strip_image_src: /img/ad\n").unwrap();
+            assert_eq!(config.strip_image_src, vec![ImageSrcFragment("/img/ad")]);
+        }
+
+        #[test]
+        fn multiple_values() {
+            let config =
+                parse_config("strip_image_src: /img/ad\nstrip_image_src: /banner/\n").unwrap();
+            assert_eq!(
+                config.strip_image_src,
+                vec![ImageSrcFragment("/img/ad"), ImageSrcFragment("/banner/")]
+            );
+        }
+    }
+
+    mod replace_string {
+        use super::*;
+
+        #[test]
+        fn empty_value() {
+            let config = parse_config("replace_string(foo): \n").unwrap();
+            assert_eq!(
+                config.replace_string,
+                vec![FindReplaceString {
+                    find: FindString("foo"),
+                    replace: ""
+                }]
+            );
+        }
+
+        #[test]
+        fn single_value() {
+            let config = parse_config("replace_string(foo): bar\n").unwrap();
+            assert_eq!(
+                config.replace_string,
+                vec![FindReplaceString {
+                    find: FindString("foo"),
+                    replace: "bar"
+                }]
+            );
+        }
+
+        #[test]
+        fn separate_find_replace_form() {
+            let config = parse_config("find_string: foo\n replace_string: bar\n").unwrap();
+            assert_eq!(
+                config.replace_string,
+                vec![FindReplaceString {
+                    find: FindString("foo"),
+                    replace: "bar"
+                }]
+            );
+        }
+
+        #[test]
+        fn separate_find_replace_form_no_find() {
+            let config = parse_config("replace_string: bar\n");
+            assert_matches!(
+                config,
+                Err(Error {
+                    kind: ErrorKind::MalformedReplaceString(),
+                    ..
+                })
+            );
+        }
+
+        #[test]
+        fn multiple_values() {
+            let config =
+                parse_config("replace_string(foo): bar\nreplace_string(baz): qux\n").unwrap();
+            assert_eq!(
+                config.replace_string,
+                vec![
+                    FindReplaceString {
+                        find: FindString("foo"),
+                        replace: "bar"
+                    },
+                    FindReplaceString {
+                        find: FindString("baz"),
+                        replace: "qux"
+                    },
+                ]
+            );
+        }
+    }
+
+    mod http_header {
+        use super::*;
+
+        #[test]
+        fn empty_value() {
+            let config = parse_config("http_header(Cookie): \n").unwrap();
+            assert_eq!(
+                config.http_header,
+                vec![HttpHeader {
+                    name: "Cookie",
+                    value: ""
+                }]
+            );
+        }
+
+        #[test]
+        fn single_value() {
+            let config = parse_config("http_header(Cookie): euConsent=true\n").unwrap();
+            assert_eq!(
+                config.http_header,
+                vec![HttpHeader {
+                    name: "Cookie",
+                    value: "euConsent=true"
+                }]
+            );
+        }
+
+        #[test]
+        fn multiple_values() {
+            let config = parse_config(
+                "http_header(Cookie): euConsent=true\nhttp_header(User-agent): Mozilla/5.0\n",
+            )
+            .unwrap();
+            assert_eq!(
+                config.http_header,
+                vec![
+                    HttpHeader {
+                        name: "Cookie",
+                        value: "euConsent=true"
+                    },
+                    HttpHeader {
+                        name: "User-agent",
+                        value: "Mozilla/5.0"
+                    },
+                ]
+            );
+        }
+    }
+
+    mod test_url {
+        use super::*;
+
+        #[test]
+        fn empty_value() {
+            let config = parse_config("test_url: \n").unwrap();
+            assert_eq!(config.test_url, vec![TestUrl("")]);
+        }
+
+        #[test]
+        fn single_value() {
+            let config = parse_config("test_url: https://example.com/a\n").unwrap();
+            assert_eq!(config.test_url, vec![TestUrl("https://example.com/a")]);
+        }
+
+        #[test]
+        fn multiple_values() {
+            let config =
+                parse_config("test_url: https://example.com/a\ntest_url: https://example.com/b\n")
+                    .unwrap();
+            assert_eq!(
+                config.test_url,
+                vec![
+                    TestUrl("https://example.com/a"),
+                    TestUrl("https://example.com/b")
+                ]
+            );
+        }
+    }
+
+    mod single_page_link {
+        use super::*;
+
+        #[test]
+        fn none() {
+            let config = parse_config("").unwrap();
+            assert_eq!(config.single_page_link, None);
+        }
+
+        #[test]
+        fn some() {
+            // Last occurrence wins
+            let config = parse_config(
+                "single_page_link: //a[@class='first']\nsingle_page_link: //a[@class='second']\n",
+            )
+            .unwrap();
+            assert_eq!(config.single_page_link, Some(XPath("//a[@class='second']")));
+        }
+    }
+
+    mod single_page_link_in_feed {
+        use super::*;
+
+        #[test]
+        fn none() {
+            let config = parse_config("").unwrap();
+            assert_eq!(config.single_page_link_in_feed, None);
+        }
+
+        #[test]
+        fn some() {
+            let config = parse_config("single_page_link_in_feed: //a[@class='page']\n").unwrap();
+            assert_eq!(
+                config.single_page_link_in_feed,
+                Some(XPath("//a[@class='page']"))
+            );
+        }
+    }
+
+    mod next_page_link {
+        use super::*;
+
+        #[test]
+        fn none() {
+            let config = parse_config("").unwrap();
+            assert_eq!(config.next_page_link, None);
+        }
+
+        #[test]
+        fn some() {
+            let config = parse_config("next_page_link: //a[@class='next']\n").unwrap();
+            assert_eq!(config.next_page_link, Some(XPath("//a[@class='next']")));
+        }
+    }
+
+    mod prune {
+        use super::*;
+
+        #[test]
+        fn yes_value() {
+            let config = parse_config("prune: yes\n").unwrap();
+            assert_eq!(config.prune, YesNo::Yes);
+        }
+
+        #[test]
+        fn no_value() {
+            let config = parse_config("prune: no\n").unwrap();
+            assert_eq!(config.prune, YesNo::No);
+        }
+
+        #[test]
+        fn default_value() {
+            let config = parse_config("").unwrap();
+            assert_eq!(config.prune, YesNo::Yes);
+        }
+    }
+
+    mod tidy {
+        use super::*;
+
+        #[test]
+        fn yes_value() {
+            let config = parse_config("tidy: yes\n").unwrap();
+            assert_eq!(config.tidy, YesNo::Yes);
+        }
+
+        #[test]
+        fn no_value() {
+            let config = parse_config("tidy: no\n").unwrap();
+            assert_eq!(config.tidy, YesNo::No);
+        }
+
+        #[test]
+        fn default_value() {
+            let config = parse_config("").unwrap();
+            assert_eq!(config.tidy, YesNo::No);
+        }
+    }
+
+    mod autodetect_on_failure {
+        use super::*;
+
+        #[test]
+        fn yes_value() {
+            let config = parse_config("autodetect_on_failure: yes\n").unwrap();
+            assert_eq!(config.autodetect_on_failure, YesNo::Yes);
+        }
+
+        #[test]
+        fn no_value() {
+            let config = parse_config("autodetect_on_failure: no\n").unwrap();
+            assert_eq!(config.autodetect_on_failure, YesNo::No);
+        }
+
+        #[test]
+        fn default_value() {
+            let config = parse_config("").unwrap();
+            assert_eq!(config.autodetect_on_failure, YesNo::Yes);
+        }
+    }
+}
