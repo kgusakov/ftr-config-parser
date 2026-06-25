@@ -36,3 +36,9 @@ test_url: https://blog.sentry.io/gdpr-sentry-and-you/
     );
 }
 ```
+
+## Check the real ftr-site-config corpus
+```bach
+just setup
+just check-corpus
+```
