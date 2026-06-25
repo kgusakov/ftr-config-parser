@@ -1,4 +1,4 @@
-FROM rust:1.94.0-alpine3.23
+FROM rust:1.96.0-alpine3.23
 
 # openssl needed for cargo-udeps install
 RUN apk update && apk add --no-cache nodejs openssl-dev openssl-libs-static
