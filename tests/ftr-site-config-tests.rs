@@ -10,55 +10,69 @@ fn golem_de() {
     assert_eq!(
         parse_config(input).unwrap(),
         Config {
-            title: vec![XPath(
+            title: vec![XPath::try_from(
                 r#"substring-before( //meta[@property="og:title"]/@content , ' - Golem.de' )"#,
-            )],
-            body: vec![XPath("//main/article"), XPath("//article")],
-            date: vec![XPath("//time/@datetime")],
-            author: vec![XPath("//a[@rel='author']")],
+            )
+            .unwrap()],
+            body: vec![
+                XPath::try_from("//main/article").unwrap(),
+                XPath::try_from("//article").unwrap(),
+            ],
+            date: vec![XPath::try_from("//time/@datetime").unwrap()],
+            author: vec![XPath::try_from("//a[@rel='author']").unwrap()],
             strip: vec![
-                XPath("//div[contains(@class, 'authors--withsource')]"),
-                XPath("//div[@class='toc']"),
-                XPath("//li[not(.//text()[normalize-space()])][not(@class)]"),
-                XPath("//div[contains(@class, 'go-teaser-block')]"),
-                XPath("//ul[contains(@class, 'go-alink-list')]"),
-                XPath(
-                    "//hr[contains(@class, 'go-hr')]/following-sibling::div[contains(@class, 'go-grid')]"
-                ),
-                XPath("//div[contains(@class, 'go-article-header__meta')]"),
-                XPath("//div[contains(@class, 'go-article-header__button-bar')]"),
-                XPath("//article[contains(@class, 'go-teaser--variant-affiliate')]"),
-                XPath("//div[contains(@class, 'go-gallery__actions')]"),
-                XPath("//nav[contains(@class, 'go-article__pagination')]"),
-                XPath(
-                    "//div[contains(@class, 'go-article-header__series')][.//a[contains(@class, 'go-label')]]"
-                ),
-                XPath("//details[contains(@class, 'go-article__index')]"),
-                XPath("//img[@src='']"),
-                XPath("//div[contains(@style,'margin')]"),
-                XPath("//figure[contains(@id,'gvideo')]"),
-                XPath("//figure/figcaption[contains(text(), 'Bitte aktivieren Sie Javascript')]"),
-                XPath("//svg[contains(@class, 'go-external-link__icon')]"),
-                XPath(
-                    "//span[@class='go-vh' and normalize-space(text())='(öffnet im neuen Fenster)']"
-                ),
+                XPath::try_from("//div[contains(@class, 'authors--withsource')]").unwrap(),
+                XPath::try_from("//div[@class='toc']").unwrap(),
+                XPath::try_from("//li[not(.//text()[normalize-space()])][not(@class)]").unwrap(),
+                XPath::try_from("//div[contains(@class, 'go-teaser-block')]").unwrap(),
+                XPath::try_from("//ul[contains(@class, 'go-alink-list')]").unwrap(),
+                XPath::try_from(
+                    "//hr[contains(@class, 'go-hr')]/following-sibling::div[contains(@class, 'go-grid')]",
+                )
+                .unwrap(),
+                XPath::try_from("//div[contains(@class, 'go-article-header__meta')]").unwrap(),
+                XPath::try_from("//div[contains(@class, 'go-article-header__button-bar')]")
+                    .unwrap(),
+                XPath::try_from(
+                    "//article[contains(@class, 'go-teaser--variant-affiliate')]",
+                )
+                .unwrap(),
+                XPath::try_from("//div[contains(@class, 'go-gallery__actions')]").unwrap(),
+                XPath::try_from("//nav[contains(@class, 'go-article__pagination')]").unwrap(),
+                XPath::try_from(
+                    "//div[contains(@class, 'go-article-header__series')][.//a[contains(@class, 'go-label')]]",
+                )
+                .unwrap(),
+                XPath::try_from("//details[contains(@class, 'go-article__index')]").unwrap(),
+                XPath::try_from("//img[@src='']").unwrap(),
+                XPath::try_from("//div[contains(@style,'margin')]").unwrap(),
+                XPath::try_from("//figure[contains(@id,'gvideo')]").unwrap(),
+                XPath::try_from(
+                    "//figure/figcaption[contains(text(), 'Bitte aktivieren Sie Javascript')]",
+                )
+                .unwrap(),
+                XPath::try_from("//svg[contains(@class, 'go-external-link__icon')]").unwrap(),
+                XPath::try_from(
+                    "//span[@class='go-vh' and normalize-space(text())='(öffnet im neuen Fenster)']",
+                )
+                .unwrap(),
             ],
             strip_id_or_class: vec![
-                IdOrClass("go-heading--h1"),
-                IdOrClass("iqadtile4"),
-                IdOrClass("gbox_affiliate"),
-                IdOrClass("seminars"),
-                IdOrClass("supplementary"),
-                IdOrClass("list-jtoc"),
-                IdOrClass("table-jtoc"),
-                IdOrClass("implied"),
-                IdOrClass("social-tools"),
-                IdOrClass("comments"),
-                IdOrClass("footer"),
-                IdOrClass("job-market"),
-                IdOrClass("tags"),
-                IdOrClass("topictags"),
-                IdOrClass("go-button-bar"),
+                IdOrClass::try_from("go-heading--h1").unwrap(),
+                IdOrClass::try_from("iqadtile4").unwrap(),
+                IdOrClass::try_from("gbox_affiliate").unwrap(),
+                IdOrClass::try_from("seminars").unwrap(),
+                IdOrClass::try_from("supplementary").unwrap(),
+                IdOrClass::try_from("list-jtoc").unwrap(),
+                IdOrClass::try_from("table-jtoc").unwrap(),
+                IdOrClass::try_from("implied").unwrap(),
+                IdOrClass::try_from("social-tools").unwrap(),
+                IdOrClass::try_from("comments").unwrap(),
+                IdOrClass::try_from("footer").unwrap(),
+                IdOrClass::try_from("job-market").unwrap(),
+                IdOrClass::try_from("tags").unwrap(),
+                IdOrClass::try_from("topictags").unwrap(),
+                IdOrClass::try_from("go-button-bar").unwrap(),
             ],
             strip_image_src: vec![],
             prune: YesNo::No,
@@ -66,48 +80,48 @@ fn golem_de() {
             autodetect_on_failure: YesNo::Yes,
             single_page_link: None,
             single_page_link_in_feed: None,
-            next_page_link: Some(XPath(
-                "//li[contains(@class, 'go-pagination__item--next')]/a",
-            )),
+            next_page_link: Some(
+                XPath::try_from("//li[contains(@class, 'go-pagination__item--next')]/a").unwrap(),
+            ),
             replace_string: vec![
                 FindReplaceString {
                     find: FindString::try_from("<h1").unwrap(),
-                    replace: "<h2"
+                    replace: "<h2",
                 },
                 FindReplaceString {
                     find: FindString::try_from("</h1>").unwrap(),
-                    replace: "</h2>"
+                    replace: "</h2>",
                 },
             ],
             http_header: vec![
                 HttpHeader {
                     name: "Cookie",
-                    value: "golem_consent20=cmp|250101"
+                    value: "golem_consent20=cmp|250101",
                 },
                 HttpHeader {
                     name: "user-agent",
-                    value: "Googlebot"
+                    value: "Googlebot",
                 },
                 HttpHeader {
                     name: "Cookie",
-                    value: "golem_multipage=single"
+                    value: "golem_multipage=single",
                 },
             ],
             test_url: vec![
                 TestUrl(
-                    "https://www.golem.de/news/arbeitsplatz-unter-druck-was-haelt-dich-noch-im-job-2509-200011.html"
+                    "https://www.golem.de/news/arbeitsplatz-unter-druck-was-haelt-dich-noch-im-job-2509-200011.html",
                 ),
                 TestUrl(
-                    "https://www.golem.de/news/onlineshopping-auf-pump-boomt-erstmals-mehr-als-zehn-millionen-neue-ratenkredite-2509-199696.html"
+                    "https://www.golem.de/news/onlineshopping-auf-pump-boomt-erstmals-mehr-als-zehn-millionen-neue-ratenkredite-2509-199696.html",
                 ),
                 TestUrl(
-                    "http://www.golem.de/news/intel-core-i7-5960x-im-test-die-pc-revolution-beginnt-mit-octacore-und-ddr4-1408-108893.html"
+                    "http://www.golem.de/news/intel-core-i7-5960x-im-test-die-pc-revolution-beginnt-mit-octacore-und-ddr4-1408-108893.html",
                 ),
                 TestUrl(
-                    "http://www.golem.de/news/test-infamous-first-light-neonbunter-actionspass-1408-108914.html"
+                    "http://www.golem.de/news/test-infamous-first-light-neonbunter-actionspass-1408-108914.html",
                 ),
                 TestUrl(
-                    "https://www.golem.de/news/ressourcenschonend-programmieren-so-wurden-spiele-fuer-den-commodore-64-und-atari-entwickelt-2307-175508.html"
+                    "https://www.golem.de/news/ressourcenschonend-programmieren-so-wurden-spiele-fuer-den-commodore-64-und-atari-entwickelt-2307-175508.html",
                 ),
             ],
         }
@@ -121,21 +135,22 @@ fn lwn_net() {
     assert_eq!(
         parse_config(input).unwrap(),
         Config {
-            title: vec![XPath("//h1")],
-            body: vec![XPath("//div[@class='ArticleText']")],
+            title: vec![XPath::try_from("//h1").unwrap()],
+            body: vec![XPath::try_from("//div[@class='ArticleText']").unwrap()],
             date: vec![
-                XPath("//div[@class='FeatureByline']/text()[preceding-sibling::br]"),
-                XPath("//div[@class='GAByline']/p[1]"),
+                XPath::try_from("//div[@class='FeatureByline']/text()[preceding-sibling::br]")
+                    .unwrap(),
+                XPath::try_from("//div[@class='GAByline']/p[1]").unwrap(),
             ],
             author: vec![
-                XPath("//div[@class='FeatureByline']/strong"),
-                XPath("substring-after(//div[@class='GAByline']/p[2], 'by ')"),
+                XPath::try_from("//div[@class='FeatureByline']/strong").unwrap(),
+                XPath::try_from("substring-after(//div[@class='GAByline']/p[2], 'by ')").unwrap(),
             ],
             strip: vec![
-                XPath("//div[@class='FeatureByline']"),
-                XPath("//div[@class='GAByline']"),
-                XPath("//div[@class='ftrss-strip']"),
-                XPath("//table[@class='Form']"),
+                XPath::try_from("//div[@class='FeatureByline']").unwrap(),
+                XPath::try_from("//div[@class='GAByline']").unwrap(),
+                XPath::try_from("//div[@class='ftrss-strip']").unwrap(),
+                XPath::try_from("//table[@class='Form']").unwrap(),
             ],
             strip_id_or_class: vec![],
             strip_image_src: vec![],
@@ -143,23 +158,26 @@ fn lwn_net() {
             tidy: YesNo::Yes,
             autodetect_on_failure: YesNo::Yes,
             // last occurrence of single_page_link wins
-            single_page_link: Some(XPath(
-                "concat(//div[@class='ArticleText']//a[contains(text(), 'Read more')]/@href, 'bigpage')",
-            )),
+            single_page_link: Some(
+                XPath::try_from(
+                    "concat(//div[@class='ArticleText']//a[contains(text(), 'Read more')]/@href, 'bigpage')",
+                )
+                .unwrap(),
+            ),
             single_page_link_in_feed: None,
             next_page_link: None,
             replace_string: vec![
                 FindReplaceString {
                     find: FindString::try_from(r#"<p class="Cat1HL">"#).unwrap(),
-                    replace: "<h1>"
+                    replace: "<h1>",
                 },
                 FindReplaceString {
                     find: FindString::try_from(r#"<h2 class="SummaryHL">"#).unwrap(),
-                    replace: "<h3>"
+                    replace: "<h3>",
                 },
                 FindReplaceString {
                     find: FindString::try_from(r#"<p class="Cat2HL">"#).unwrap(),
-                    replace: "<h2>"
+                    replace: "<h2>",
                 },
                 FindReplaceString {
                     find: FindString::try_from(r#"<hr width="60%" align="left">"#).unwrap(),
@@ -167,7 +185,7 @@ fn lwn_net() {
                 },
                 FindReplaceString {
                     find: FindString::try_from("to post comments)").unwrap(),
-                    replace: "</div>"
+                    replace: "</div>",
                 },
             ],
             http_header: vec![],
@@ -191,43 +209,44 @@ fn next_ink() {
     assert_eq!(
         parse_config(input).unwrap(),
         Config {
-            title: vec![XPath("//h1[@id='single-article-title']")],
+            title: vec![XPath::try_from("//h1[@id='single-article-title']").unwrap()],
             body: vec![
-                XPath("//div[@id='next-single-post']"),
-                XPath("//article[1]"),
-                XPath("//div[@id='article-single']"),
+                XPath::try_from("//div[@id='next-single-post']").unwrap(),
+                XPath::try_from("//article[1]").unwrap(),
+                XPath::try_from("//div[@id='article-single']").unwrap(),
             ],
             date: vec![],
-            author: vec![XPath(
+            author: vec![XPath::try_from(
                 "normalize-space(//p[contains(@class, 'next-list-author')]//a[@class='next-post-author'])",
-            )],
+            )
+            .unwrap()],
             strip: vec![
-                XPath("//div[contains(@class, 'thumbnail-mobile')]"),
-                XPath("//div[contains(@class, 'article-header')]/h1"),
-                XPath("//div[contains(@class, 'article-header')]/h2"),
+                XPath::try_from("//div[contains(@class, 'thumbnail-mobile')]").unwrap(),
+                XPath::try_from("//div[contains(@class, 'article-header')]/h1").unwrap(),
+                XPath::try_from("//div[contains(@class, 'article-header')]/h2").unwrap(),
             ],
             strip_id_or_class: vec![
-                IdOrClass("article-author"),
-                IdOrClass("article-info"),
-                IdOrClass("share-bottom"),
-                IdOrClass("reading-time-post"),
-                IdOrClass("author-info"),
-                IdOrClass("other-article"),
-                IdOrClass("aside"),
-                IdOrClass("comment-widget"),
-                IdOrClass("share-mobile"),
-                IdOrClass("paywall"),
-                IdOrClass("list-link-internal"),
-                IdOrClass("share-button"),
-                IdOrClass("public_categories"),
-                IdOrClass("gift-button"),
-                IdOrClass("go-to-comments-button"),
-                IdOrClass("dropdown-button"),
-                IdOrClass("dropdown-content-signalement"),
-                IdOrClass("article-option"),
-                IdOrClass("wp-block-video"),
-                IdOrClass("article-info-left"),
-                IdOrClass("article-info-right"),
+                IdOrClass::try_from("article-author").unwrap(),
+                IdOrClass::try_from("article-info").unwrap(),
+                IdOrClass::try_from("share-bottom").unwrap(),
+                IdOrClass::try_from("reading-time-post").unwrap(),
+                IdOrClass::try_from("author-info").unwrap(),
+                IdOrClass::try_from("other-article").unwrap(),
+                IdOrClass::try_from("aside").unwrap(),
+                IdOrClass::try_from("comment-widget").unwrap(),
+                IdOrClass::try_from("share-mobile").unwrap(),
+                IdOrClass::try_from("paywall").unwrap(),
+                IdOrClass::try_from("list-link-internal").unwrap(),
+                IdOrClass::try_from("share-button").unwrap(),
+                IdOrClass::try_from("public_categories").unwrap(),
+                IdOrClass::try_from("gift-button").unwrap(),
+                IdOrClass::try_from("go-to-comments-button").unwrap(),
+                IdOrClass::try_from("dropdown-button").unwrap(),
+                IdOrClass::try_from("dropdown-content-signalement").unwrap(),
+                IdOrClass::try_from("article-option").unwrap(),
+                IdOrClass::try_from("wp-block-video").unwrap(),
+                IdOrClass::try_from("article-info-left").unwrap(),
+                IdOrClass::try_from("article-info-right").unwrap(),
             ],
             strip_image_src: vec![],
             prune: YesNo::No,
@@ -244,14 +263,14 @@ fn next_ink() {
             http_header: vec![],
             test_url: vec![
                 TestUrl(
-                    "https://next.ink/120832/le-reseau-interministeriel-de-letat-rie-fete-ses-10-ans-et-se-modernise/"
+                    "https://next.ink/120832/le-reseau-interministeriel-de-letat-rie-fete-ses-10-ans-et-se-modernise/",
                 ),
                 TestUrl(
-                    "https://next.ink/127657/edito-limportance-de-bien-citer-et-verifier-ses-sources/"
+                    "https://next.ink/127657/edito-limportance-de-bien-citer-et-verifier-ses-sources/",
                 ),
                 TestUrl("https://next.ink/136362/les-ecrans-du-temps-perdu-pour-les-enfants/"),
                 TestUrl(
-                    "https://next.ink/143136/planete-9-son-absence-serait-statistiquement-impossible/"
+                    "https://next.ink/143136/planete-9-son-absence-serait-statistiquement-impossible/",
                 ),
             ],
         }
@@ -266,40 +285,42 @@ fn mediapart_fr() {
         parse_config(input).unwrap(),
         Config {
             // no space between key and colon: "title://h1[@class="title"]"
-            title: vec![XPath(r#"//h1[@class="title"]"#)],
-            body: vec![XPath("//main[1]")],
-            date: vec![XPath(
+            title: vec![XPath::try_from(r#"//h1[@class="title"]"#).unwrap()],
+            body: vec![XPath::try_from("//main[1]").unwrap()],
+            date: vec![XPath::try_from(
                 "//div[contains(concat(' ',normalize-space(@class),' '),' author ')]//time/@datetime",
-            )],
-            author: vec![XPath(
+            )
+            .unwrap()],
+            author: vec![XPath::try_from(
                 "//div[contains(concat(' ',normalize-space(@class),' '),' author ')]//a[@class='journalist']",
-            )],
+            )
+            .unwrap()],
             strip: vec![
-                XPath("//button"),
-                XPath(r#"//article[contains(@class, "collection-card")]"#),
-                XPath(r#"//h2[contains(@class, "subheading-bullet-point")]"#),
-                XPath(r#"//figure[@id="lecteur-audio"]"#),
+                XPath::try_from("//button").unwrap(),
+                XPath::try_from(r#"//article[contains(@class, "collection-card")]"#).unwrap(),
+                XPath::try_from(r#"//h2[contains(@class, "subheading-bullet-point")]"#).unwrap(),
+                XPath::try_from(r#"//figure[@id="lecteur-audio"]"#).unwrap(),
             ],
             strip_id_or_class: vec![
-                IdOrClass("news__body__right"),
-                IdOrClass("news__heading__top__kicker"),
-                IdOrClass("page-title"),
-                IdOrClass("news__heading__center"),
-                IdOrClass("splitter"),
-                IdOrClass("engagement-bar-wrapper"),
-                IdOrClass("read-also"),
-                IdOrClass("newsletter-form"),
-                IdOrClass("paywall-login"),
-                IdOrClass("paywall-message"),
-                IdOrClass("paywall_no_variance"),
+                IdOrClass::try_from("news__body__right").unwrap(),
+                IdOrClass::try_from("news__heading__top__kicker").unwrap(),
+                IdOrClass::try_from("page-title").unwrap(),
+                IdOrClass::try_from("news__heading__center").unwrap(),
+                IdOrClass::try_from("splitter").unwrap(),
+                IdOrClass::try_from("engagement-bar-wrapper").unwrap(),
+                IdOrClass::try_from("read-also").unwrap(),
+                IdOrClass::try_from("newsletter-form").unwrap(),
+                IdOrClass::try_from("paywall-login").unwrap(),
+                IdOrClass::try_from("paywall-message").unwrap(),
+                IdOrClass::try_from("paywall_no_variance").unwrap(),
                 // leading whitespace in source "strip_id_or_class:  screen-reader-only" is handled by split_ascii_whitespace
-                IdOrClass("screen-reader-only"),
+                IdOrClass::try_from("screen-reader-only").unwrap(),
             ],
             strip_image_src: vec![],
             prune: YesNo::No,
             tidy: YesNo::No,
             autodetect_on_failure: YesNo::Yes,
-            single_page_link: Some(XPath(r#"//link[@rel="canonical"]"#)),
+            single_page_link: Some(XPath::try_from(r#"//link[@rel="canonical"]"#).unwrap()),
             single_page_link_in_feed: None,
             next_page_link: None,
             replace_string: vec![
@@ -311,7 +332,7 @@ fn mediapart_fr() {
                 // `find_string` further down is also unknown; `replace_string` with no param gets find=""
                 FindReplaceString {
                     find: FindString::try_from(r#"class="container"#).unwrap(),
-                    replace: r#"class="foo_cntr"#
+                    replace: r#"class="foo_cntr"#,
                 },
             ],
             http_header: vec![],

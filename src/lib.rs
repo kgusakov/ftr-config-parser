@@ -25,7 +25,7 @@ pub struct Config<'a> {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct XPath<'a>(pub &'a str);
+pub struct XPath<'a>(&'a str);
 
 impl<'a> TryFrom<&'a str> for XPath<'a> {
     type Error = error::ErrorKind;
@@ -45,7 +45,7 @@ impl<'a> TryFrom<&'a str> for XPath<'a> {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct IdOrClass<'a>(pub &'a str);
+pub struct IdOrClass<'a>(&'a str);
 
 impl<'a> TryFrom<&'a str> for IdOrClass<'a> {
     type Error = error::ErrorKind;
@@ -62,7 +62,7 @@ impl<'a> TryFrom<&'a str> for IdOrClass<'a> {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct ImageSrcFragment<'a>(pub &'a str);
+pub struct ImageSrcFragment<'a>(&'a str);
 
 impl<'a> TryFrom<&'a str> for ImageSrcFragment<'a> {
     type Error = error::ErrorKind;
@@ -143,7 +143,7 @@ fn parse_line(line: &str) -> Result<(&str, Option<&str>, &str), error::ErrorKind
     let line = line.trim();
 
     let colon = line
-        .find(|ch| ch == ':' || ch == '(')
+        .find([':', '('])
         .ok_or_else(|| error::ErrorKind::MalformedLine(line.to_string()))?;
     let key_part = line[..colon].trim();
 
@@ -253,7 +253,7 @@ pub fn parse_config(input: &str) -> Result<Config<'_>, Error> {
                 }
             }
             "strip_image_src" => {
-                strip_image_src.push(ImageSrcFragment::try_from(value).map_err(&locate_err)?)
+                strip_image_src.push(ImageSrcFragment::try_from(value).map_err(&locate_err)?);
             }
             "prune" => prune = value.parse().map_err(&locate_err)?,
             "tidy" => tidy = value.parse().map_err(&locate_err)?,
@@ -270,25 +270,23 @@ pub fn parse_config(input: &str) -> Result<Config<'_>, Error> {
             "find_string" => find_string = Some(FindString::try_from(value).map_err(&locate_err)?),
             "replace_string" => {
                 if let Some(p) = param
-                    .map(|f| FindString::try_from(f))
+                    .map(FindString::try_from)
                     .transpose()
                     .map_err(&locate_err)?
                 {
                     replace_string.push(FindReplaceString {
                         find: p,
                         replace: value,
-                    })
-                } else {
-                    if let Some(f_string) = find_string {
-                        replace_string.push(FindReplaceString {
-                            find: f_string,
-                            replace: value,
-                        });
+                    });
+                } else if let Some(f_string) = find_string {
+                    replace_string.push(FindReplaceString {
+                        find: f_string,
+                        replace: value,
+                    });
 
-                        find_string = None
-                    } else {
-                        return Err(locate_err(ErrorKind::MalformedReplaceString()));
-                    }
+                    find_string = None;
+                } else {
+                    return Err(locate_err(ErrorKind::MalformedReplaceString()));
                 }
             }
             "http_header" => http_header.push(HttpHeader {
