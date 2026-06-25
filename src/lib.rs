@@ -6,22 +6,89 @@ pub use error::{Error, ErrorKind};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Config<'a> {
-    pub title: Vec<XPath<'a>>,
-    pub body: Vec<XPath<'a>>,
-    pub date: Vec<XPath<'a>>,
-    pub author: Vec<XPath<'a>>,
-    pub strip: Vec<XPath<'a>>,
-    pub strip_id_or_class: Vec<IdOrClass<'a>>,
-    pub strip_image_src: Vec<ImageSrcFragment<'a>>,
-    pub prune: YesNo,
-    pub tidy: YesNo,
-    pub autodetect_on_failure: YesNo,
-    pub single_page_link: Option<XPath<'a>>,
-    pub single_page_link_in_feed: Option<XPath<'a>>,
-    pub next_page_link: Option<XPath<'a>>,
-    pub replace_string: Vec<FindReplaceString<'a>>,
-    pub http_header: Vec<HttpHeader<'a>>,
-    pub test_url: Vec<TestUrl<'a>>,
+    title: Vec<XPath<'a>>,
+    body: Vec<XPath<'a>>,
+    date: Vec<XPath<'a>>,
+    author: Vec<XPath<'a>>,
+    strip: Vec<XPath<'a>>,
+    strip_id_or_class: Vec<IdOrClass<'a>>,
+    strip_image_src: Vec<ImageSrcFragment<'a>>,
+    prune: YesNo,
+    tidy: YesNo,
+    autodetect_on_failure: YesNo,
+    single_page_link: Option<XPath<'a>>,
+    single_page_link_in_feed: Option<XPath<'a>>,
+    next_page_link: Option<XPath<'a>>,
+    replace_string: Vec<FindReplaceString<'a>>,
+    http_header: Vec<HttpHeader<'a>>,
+    test_url: Vec<TestUrl<'a>>,
+}
+
+impl<'a> Config<'a> {
+    #[must_use]
+    pub fn title(&self) -> &[XPath<'a>] {
+        &self.title
+    }
+    #[must_use]
+    pub fn body(&self) -> &[XPath<'a>] {
+        &self.body
+    }
+    #[must_use]
+    pub fn date(&self) -> &[XPath<'a>] {
+        &self.date
+    }
+    #[must_use]
+    pub fn author(&self) -> &[XPath<'a>] {
+        &self.author
+    }
+    #[must_use]
+    pub fn strip(&self) -> &[XPath<'a>] {
+        &self.strip
+    }
+    #[must_use]
+    pub fn strip_id_or_class(&self) -> &[IdOrClass<'a>] {
+        &self.strip_id_or_class
+    }
+    #[must_use]
+    pub fn strip_image_src(&self) -> &[ImageSrcFragment<'a>] {
+        &self.strip_image_src
+    }
+    #[must_use]
+    pub fn prune(&self) -> YesNo {
+        self.prune
+    }
+    #[must_use]
+    pub fn tidy(&self) -> YesNo {
+        self.tidy
+    }
+    #[must_use]
+    pub fn autodetect_on_failure(&self) -> YesNo {
+        self.autodetect_on_failure
+    }
+    #[must_use]
+    pub fn single_page_link(&self) -> Option<XPath<'a>> {
+        self.single_page_link
+    }
+    #[must_use]
+    pub fn single_page_link_in_feed(&self) -> Option<XPath<'a>> {
+        self.single_page_link_in_feed
+    }
+    #[must_use]
+    pub fn next_page_link(&self) -> Option<XPath<'a>> {
+        self.next_page_link
+    }
+    #[must_use]
+    pub fn replace_string(&self) -> &[FindReplaceString<'a>] {
+        &self.replace_string
+    }
+    #[must_use]
+    pub fn http_header(&self) -> &[HttpHeader<'a>] {
+        &self.http_header
+    }
+    #[must_use]
+    pub fn test_url(&self) -> &[TestUrl<'a>] {
+        &self.test_url
+    }
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
