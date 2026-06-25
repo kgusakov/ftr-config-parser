@@ -1,4 +1,4 @@
-use ftr_config_parser::{parse_config, TestUrl, XPath};
+use ftr_config_parser::{TestUrl, XPath, parse_config};
 
 fn main() {
     let input_config = "
