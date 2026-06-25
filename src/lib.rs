@@ -111,6 +111,26 @@ impl<'a> TryFrom<&'a str> for XPath<'a> {
     }
 }
 
+impl<'a> XPath<'a> {
+    /// Returns the underlying `XPath` expression.
+    #[must_use]
+    pub fn as_str(&self) -> &'a str {
+        self.0
+    }
+}
+
+impl AsRef<str> for XPath<'_> {
+    fn as_ref(&self) -> &str {
+        self.0
+    }
+}
+
+impl std::fmt::Display for XPath<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0)
+    }
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct IdOrClass<'a>(&'a str);
 
@@ -128,6 +148,26 @@ impl<'a> TryFrom<&'a str> for IdOrClass<'a> {
     }
 }
 
+impl<'a> IdOrClass<'a> {
+    /// Returns the underlying id or class value.
+    #[must_use]
+    pub fn as_str(&self) -> &'a str {
+        self.0
+    }
+}
+
+impl AsRef<str> for IdOrClass<'_> {
+    fn as_ref(&self) -> &str {
+        self.0
+    }
+}
+
+impl std::fmt::Display for IdOrClass<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0)
+    }
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct ImageSrcFragment<'a>(&'a str);
 
@@ -140,6 +180,26 @@ impl<'a> TryFrom<&'a str> for ImageSrcFragment<'a> {
         }
 
         Ok(ImageSrcFragment(s))
+    }
+}
+
+impl<'a> ImageSrcFragment<'a> {
+    /// Returns the underlying image-src fragment.
+    #[must_use]
+    pub fn as_str(&self) -> &'a str {
+        self.0
+    }
+}
+
+impl AsRef<str> for ImageSrcFragment<'_> {
+    fn as_ref(&self) -> &str {
+        self.0
+    }
+}
+
+impl std::fmt::Display for ImageSrcFragment<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0)
     }
 }
 
@@ -191,20 +251,88 @@ impl<'a> TryFrom<&'a str> for FindString<'a> {
     }
 }
 
+impl<'a> FindString<'a> {
+    /// Returns the underlying find string.
+    #[must_use]
+    pub fn as_str(&self) -> &'a str {
+        self.0
+    }
+}
+
+impl AsRef<str> for FindString<'_> {
+    fn as_ref(&self) -> &str {
+        self.0
+    }
+}
+
+impl std::fmt::Display for FindString<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0)
+    }
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct FindReplaceString<'a> {
-    pub find: FindString<'a>,
-    pub replace: &'a str,
+    find: FindString<'a>,
+    replace: &'a str,
+}
+
+impl<'a> FindReplaceString<'a> {
+    /// Returns the find part of the replacement pair.
+    #[must_use]
+    pub fn find(&self) -> FindString<'a> {
+        self.find
+    }
+
+    /// Returns the replacement string.
+    #[must_use]
+    pub fn replace(&self) -> &'a str {
+        self.replace
+    }
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct HttpHeader<'a> {
-    pub name: &'a str,
-    pub value: &'a str,
+    name: &'a str,
+    value: &'a str,
+}
+
+impl<'a> HttpHeader<'a> {
+    /// Returns the header name.
+    #[must_use]
+    pub fn name(&self) -> &'a str {
+        self.name
+    }
+
+    /// Returns the header value.
+    #[must_use]
+    pub fn value(&self) -> &'a str {
+        self.value
+    }
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct TestUrl<'a>(pub &'a str);
+pub struct TestUrl<'a>(&'a str);
+
+impl<'a> TestUrl<'a> {
+    /// Returns the underlying test URL.
+    #[must_use]
+    pub fn as_str(&self) -> &'a str {
+        self.0
+    }
+}
+
+impl AsRef<str> for TestUrl<'_> {
+    fn as_ref(&self) -> &str {
+        self.0
+    }
+}
+
+impl std::fmt::Display for TestUrl<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0)
+    }
+}
 
 fn parse_line(line: &str) -> Result<(&str, Option<&str>, &str), error::ErrorKind> {
     let line = line.trim();
